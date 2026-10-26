@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>El Unsito | Noticias de la Universidad de la Sierra Sur</title>
+  <meta name="description" content="El Unsito: noticias, agenda y vida universitaria de la Universidad de la Sierra Sur (UNSIS), en Miahuatlán de Porfirio Díaz, Oaxaca.">
+  <link rel="icon" href="imagenes/favicon.png" type="image/png">
+
+  <!-- Tipografías: Archivo (titulares) y Source Serif 4 (lectura). Sin internet se usan las del sistema. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Marca que JavaScript está disponible (el menú móvil solo se oculta si hay JS) -->
+  <script>document.documentElement.classList.add('js');</script>
+  <script src="js/main.js?v=noticias-compatibilidad-6" defer></script>
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <!-- ========== ENCABEZADO FIJO ========== -->
+  <header class="encabezado">
+    <div class="contenedor encabezado__barra">
+      <h1 class="marca">
+        <a class="marca__enlace" href="#inicio">
+          <img class="marca__logo" src="imagenes/logo-unsis.webp" alt="" width="48" height="48">
+          <span class="marca__textos">
+            <span class="marca__nombre">El Unsito</span>
+            <span class="marca__lema">Noticias de la UNSIS</span>
+          </span>
+        </a>
+      </h1>
+
+      <button class="menu-boton" type="button" aria-expanded="false" aria-controls="menu-principal">
+        <span class="menu-boton__icono" aria-hidden="true"></span>
+        <span class="menu-boton__texto">Menú</span>
+      </button>
+
+      <nav class="navegacion" id="menu-principal" aria-label="Principal">
+        <ul class="navegacion__lista">
+          <li><a class="navegacion__enlace" href="#noticias">Noticias</a></li>
+          <li><a class="navegacion__enlace" href="#crear-noticia">Crear noticia</a></li>
+          <li><a class="navegacion__enlace" href="#unsis">La UNSIS</a></li>
+          <li><a class="navegacion__enlace" href="#egresados">Egresados</a></li>
+          <li><a class="navegacion__enlace" href="#agenda">Agenda</a></li>
+          <li><a class="navegacion__enlace" href="#contacto">Contacto</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+
+    <!-- ========== NOTICIA DESTACADA (se llena desde js/main.js) ========== -->
+    <section class="destacada" id="inicio" aria-labelledby="destacada-titulo">
+      <div class="contenedor destacada__rejilla" id="destacada"></div>
+      <noscript>
+        <div class="contenedor aviso-sin-js">
+          <p>Para ver las noticias y la agenda activa JavaScript en tu navegador, o visita <a href="https://www.unsis.edu.mx/web/">unsis.edu.mx</a>.</p>
+        </div>
+      </noscript>
+    </section>
+
+    <!-- ========== NOTICIAS RECIENTES ========== -->
+    <section class="seccion noticias" id="noticias" aria-labelledby="noticias-titulo">
+      <div class="contenedor">
+        <div class="seccion__cabecera">
+          <h2 class="seccion__titulo" id="noticias-titulo">Noticias recientes</h2>
+          <p class="seccion__entrada">Lo que está pasando en el campus, en corto. Toca una nota para leerla completa.</p>
+        </div>
+
+        <div class="filtros" role="group" aria-label="Filtrar noticias por categoría" id="filtros"></div>
+        <p role="status" aria-live="polite" id="noticias-estado"></p>
+        <button class="boton boton--contorno" type="button" id="recargar-noticias">Actualizar noticias</button>
+
+        <div class="rejilla-noticias" id="lista-noticias"></div>
+
+        <div class="noticias__mas">
+          <button class="boton boton--contorno" type="button" id="ver-mas" hidden>Ver más noticias</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion seccion--cal" id="crear-noticia" aria-labelledby="crear-titulo">
+      <div class="contenedor">
+        <h2 class="seccion__titulo" id="crear-titulo">Crear noticia</h2>
+        <p>Escribe tu noticia y selecciona una imagen opcional. Los campos con * son obligatorios.</p>
+        <form id="formulario-noticia" class="formulario-noticia">
+          <fieldset id="campos-noticia">
+            <legend>Datos de la noticia</legend>
+            <label>Título *<input name="titulo" required maxlength="180"></label>
+            <label>Fecha *<input name="fecha" type="date" required></label>
+            <label>Categoría *<input name="categoria" required maxlength="60" value="General"></label>
+            <label>Detalle *<textarea name="detalle" required rows="8" maxlength="30000"></textarea></label>
+            <label>Imagen (opcional)<input name="archivo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            <p class="formulario-noticia__ayuda">JPG, PNG o WebP. Máximo 10 MB.</p>
+            <label>Descripción de la imagen<input name="alt" maxlength="300"></label>
+            <button class="boton" type="submit">Publicar noticia</button>
+          </fieldset>
+          <p id="publicacion-estado" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- ========== INFORMACIÓN INSTITUCIONAL ========== -->
+    <section class="seccion seccion--cal institucional" id="unsis" aria-labelledby="unsis-titulo">
+      <div class="contenedor">
+        <div class="institucional__intro">
+          <div class="institucional__texto">
+            <h2 class="seccion__titulo" id="unsis-titulo">Conoce la UNSIS</h2>
+            <p>La Universidad de la Sierra Sur es una universidad pública del Gobierno del Estado de Oaxaca y forma parte del Sistema de Universidades Estatales de Oaxaca (SUNEO). Está en Miahuatlán de Porfirio Díaz y ofrece licenciaturas, maestrías y doctorado en las áreas de salud, administración e informática.</p>
+            <p>Aquí el día no termina con las clases. Así se organiza la vida de cada estudiante:</p>
+            <ul class="dia-unsis">
+              <li><strong>Una hora diaria de inglés</strong> con profesores angloparlantes de tiempo completo.</li>
+              <li><strong>Una hora diaria de biblioteca</strong> para estudiar y consultar material.</li>
+              <li><strong>Al menos una hora diaria en salas de cómputo</strong> con internet.</li>
+              <li><strong>Dos estancias profesionales</strong> de 280 horas cada una y <strong>480 horas de servicio social</strong>.</li>
+            </ul>
+            <p><a class="enlace-flecha" href="https://www.unsis.edu.mx/web/nuestra_universidad/que_es_la_unsis">Más sobre la universidad en su sitio oficial</a></p>
+          </div>
+          <figure class="institucional__foto">
+            <img src="imagenes/entrada-principal.webp" width="800" height="400" loading="lazy" decoding="async"
+                 alt="Entrada principal de la universidad: arco blanco con pilares rojos y la leyenda Universidad Sierra Sur; varios estudiantes salen caminando.">
+            <figcaption>La entrada principal del campus, en Miahuatlán de Porfirio Díaz.</figcaption>
+          </figure>
+        </div>
+
+        <!-- Cifras: se llenan desde js/main.js (arreglo CIFRAS) -->
+        <h3 class="subtitulo">La UNSIS en cifras</h3>
+        <dl class="cifras" id="cifras"></dl>
+
+        <div class="institucional__columnas">
+          <div class="oferta">
+            <h3 class="subtitulo">Oferta educativa</h3>
+            <h4 class="oferta__nivel">Licenciaturas</h4>
+            <ul class="oferta__lista">
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_administracion_publica">Administración Pública</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_ciencias_biomedicas">Ciencias Biomédicas</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_ciencias_empresariales">Ciencias Empresariales</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_enfermeria">Enfermería</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_gobierno_y_desarrollo_municipal">Gobierno y Desarrollo Municipal</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_informatica">Informática</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_medicina">Medicina</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_nutricion">Nutrición</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/licenciaturas/licenciatura_en_odontologia">Odontología</a></li>
+            </ul>
+            <h4 class="oferta__nivel">Posgrados</h4>
+            <ul class="oferta__lista">
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/posgrado/maestria_en_administracion_universitaria">Maestría en Administración Universitaria</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/posgrado/maestria_en_gobierno_electronico">Maestría en Gobierno Electrónico</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/posgrado/Maestria_en_planeacion_estrategica_municipal">Maestría en Planeación Estratégica Municipal</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/posgrado/maestria_en_salud_publica">Maestría en Salud Pública</a></li>
+              <li><a href="https://www.unsis.edu.mx/web/ensenanza/posgrado/doctorado_en_gobierno_electronico">Doctorado en Gobierno Electrónico</a></li>
+            </ul>
+            <div class="oferta__acciones">
+              <a class="boton" href="https://www.unsis.edu.mx/web/ensenanza/ingreso_a_la_licenciatura">Cómo entrar a una licenciatura</a>
+              <a class="boton boton--contorno" href="https://www.unsis.edu.mx/web/ensenanza/ingreso_a_posgrado">Ingreso a posgrado</a>
+            </div>
+          </div>
+
+          <div class="historia">
+            <h3 class="subtitulo">Así ha crecido</h3>
+            <ol class="linea-tiempo">
+              <li><span class="linea-tiempo__anio">2000</span><p>El 2 de octubre empiezan las clases con las licenciaturas en Administración Municipal y Enfermería, y el Técnico Profesional Asociado en Procesos Agroindustriales.</p></li>
+              <li><span class="linea-tiempo__anio">2003</span><p>Se integra al SUNEO y abre la Licenciatura en Ciencias Empresariales.</p></li>
+              <li><span class="linea-tiempo__anio">2004</span><p>Llegan Administración Pública e Informática.</p></li>
+              <li><span class="linea-tiempo__anio">2009</span><p>Abren Nutrición y la Maestría en Planeación Estratégica Municipal.</p></li>
+              <li><span class="linea-tiempo__anio">2010</span><p>Maestrías en Salud Pública y en Gobierno Electrónico, y el Doctorado en Gobierno Electrónico.</p></li>
+              <li><span class="linea-tiempo__anio">2011</span><p>La Maestría en Salud Pública se ofrece también en modalidad virtual.</p></li>
+              <li><span class="linea-tiempo__anio">2017</span><p>Abre la Licenciatura en Odontología.</p></li>
+              <li><span class="linea-tiempo__anio">2018</span><p>Se incorpora la Licenciatura en Medicina.</p></li>
+              <li><span class="linea-tiempo__anio">2022</span><p>Abre la Maestría en Administración Universitaria.</p></li>
+              <li><span class="linea-tiempo__anio">2024</span><p>Se suma la Licenciatura en Ciencias Biomédicas.</p></li>
+            </ol>
+            <p class="nota-fuente">Fuente: <a href="https://www.unsis.edu.mx/web/nuestra_universidad/historia">Historia de la UNSIS</a>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== EGRESADOS (se llena desde js/main.js) ========== -->
+    <section class="seccion egresados" id="egresados" aria-labelledby="egresados-titulo">
+      <div class="contenedor egresados__rejilla">
+        <div class="egresados__cabecera">
+          <h2 class="seccion__titulo" id="egresados-titulo">Egresados</h2>
+          <p class="seccion__entrada">Caminaron por estos pasillos y hoy trabajan en la región y fuera de ella. Esto nos contaron.</p>
+          <figure class="egresados__foto">
+            <img src="imagenes/biblioteca-cupula.webp" width="800" height="600" loading="lazy" decoding="async"
+                 alt="Edificio de la biblioteca con cúpula blanca y banda roja; varias estudiantes caminan hacia la entrada.">
+            <figcaption>Foto de archivo del campus.</figcaption>
+          </figure>
+        </div>
+        <ul class="testimonios" id="testimonios"></ul>
+      </div>
+    </section>
+
+    <!-- ========== AGENDA Y CONVOCATORIAS (se llena desde js/main.js) ========== -->
+    <section class="seccion seccion--cal agenda" id="agenda" aria-labelledby="agenda-titulo">
+      <div class="contenedor">
+        <div class="seccion__cabecera">
+          <h2 class="seccion__titulo" id="agenda-titulo">Agenda y convocatorias</h2>
+          <p class="seccion__entrada">Apunta estas fechas. El estado de cada evento se actualiza solo con el día de hoy.</p>
+        </div>
+        <ol class="agenda__lista" id="lista-agenda"></ol>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========== PIE DE PÁGINA ========== -->
+  <footer class="pie" id="contacto">
+    <div class="contenedor pie__rejilla">
+      <div class="pie__marca">
+        <img class="pie__logo" src="imagenes/logo-unsis.webp" width="72" height="72" loading="lazy" alt="Escudo de la Universidad de la Sierra Sur">
+        <p class="pie__nombre">El Unsito</p>
+        <p>Lo que pasa en la UNSIS, contado en corto.</p>
+      </div>
+
+      <div class="pie__bloque">
+        <h2 class="pie__titulo">Contacto</h2>
+        <address class="pie__direccion">
+          Universidad de la Sierra Sur<br>
+          Guillermo Rojas Mijangos s/n, esq. Av. Universidad<br>
+          Col. Ciudad Universitaria, C.P. 70800<br>
+          Miahuatlán de Porfirio Díaz, Oaxaca
+        </address>
+        <p>Tel. <a href="tel:+529515724100">951 572 4100</a></p>
+        <p><span class="marcador">[PENDIENTE: correo de contacto]</span></p>
+        <p><a class="enlace-flecha" href="https://www.google.com/maps/search/?api=1&amp;query=Universidad+de+la+Sierra+Sur%2C+Miahuatl%C3%A1n+de+Porfirio+D%C3%ADaz%2C+Oaxaca">Cómo llegar (Google Maps)</a></p>
+      </div>
+
+      <div class="pie__bloque">
+        <h2 class="pie__titulo">Enlaces útiles</h2>
+        <ul class="pie__lista">
+          <li><a href="https://www.unsis.edu.mx/web/">Sitio oficial de la UNSIS</a></li>
+          <li><a href="https://www.unsis.edu.mx/web/ensenanza/ingreso_a_la_licenciatura">Ingreso a licenciatura</a></li>
+          <li><a href="https://www.unsis.edu.mx/web/ensenanza/ingreso_a_posgrado">Ingreso a posgrado</a></li>
+          <li><a href="https://www.unsis.edu.mx/web/ensenanza/becas">Becas</a></li>
+          <li><a href="https://www.unsis.edu.mx/web/node/323">Convocatorias</a></li>
+          <li><a href="https://www.unsis.edu.mx/web/node/208">Transparencia</a></li>
+        </ul>
+      </div>
+
+      <div class="pie__bloque">
+        <h2 class="pie__titulo">Redes sociales</h2>
+        <!-- Se llena desde js/main.js (arreglo REDES) -->
+        <ul class="pie__lista" id="redes"></ul>
+      </div>
+    </div>
+    <div class="contenedor pie__legal">
+      <p>© <span id="anio">2026</span> El Unsito. Noticias y agenda tomadas de <a href="https://www.unsis.edu.mx/web/">unsis.edu.mx</a>.</p>
+    </div>
+  </footer>
+
+  <!-- ========== LECTOR DE NOTAS (ventana accesible) ========== -->
+  <dialog class="lector" id="lector" aria-labelledby="lector-titulo">
+    <div class="lector__marco">
+      <button class="lector__cerrar" type="button" data-cerrar>Cerrar<span aria-hidden="true">×</span></button>
+      <article class="lector__contenido" id="lector-contenido"></article>
+    </div>
+  </dialog>
+</body>
+</html>

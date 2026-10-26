@@ -1,0 +1,771 @@
+/* ==========================================================================
+   El Unsito · Hoja de estilos
+   Concepto "letrero de campus": muros blancos (fondo) y bandas rojo óxido
+   con letras blancas, como los letreros de los edificios de la UNSIS.
+   Enfoque mobile-first: los estilos base son para celular y las
+   consultas @media agregan cambios para tableta (40rem) y escritorio (64rem).
+   ========================================================================== */
+
+/* ---------- 1. Variables de diseño (tokens) ---------- */
+:root {
+  /* Color institucional (verificado en unsis.edu.mx) y derivados */
+  --rojo: #79170F;            /* rojo óxido: marca, botones, letreros */
+  --rojo-profundo: #5A0F09;   /* hover y pie de página */
+  --rojo-tenue: #F8ECEA;
+  --azul: #1D4E6E;            /* azul sierra: secundario y anillo de foco */
+  --azul-tenue: #E8EFF5;
+  --maiz: #E8A92C;            /* acento: solo sobre fondos oscuros */
+  --maiz-oscuro: #7F5600;
+
+  /* Neutros */
+  --tinta: #1E1918;
+  --piedra: #5A504E;
+  --linea: #E4DEDC;
+  --cal: #F6F3F2;
+  --blanco: #FFFFFF;
+  --sobre-rojo-tenue: #F3DDD9; /* texto secundario sobre rojo (8.4:1) */
+  --sobre-pie: #D9C9C6;        /* texto secundario en el pie (8.7:1) */
+
+  /* Estados (texto / fondo) */
+  --exito: #1F6E3D;  --exito-fondo: #E6F2EA;
+  --aviso: #8A5200;  --aviso-fondo: #FDF1DC;
+  --error: #B3261E;  --error-fondo: #FCEBEA;
+  --info: #1D4E6E;   --info-fondo: #E8EFF5;
+
+  /* Tipografía */
+  --fuente-titulos: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --fuente-texto: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --t-mini: 0.8125rem;
+  --t-chico: 0.875rem;
+  --t-ui: 1rem;
+  --t-base: 1.0625rem;
+  --t-medio: 1.25rem;
+  --t-seccion: clamp(1.625rem, 1.2rem + 1.6vw, 2.25rem);
+  --t-portada: clamp(1.875rem, 1.1rem + 3.2vw, 3.25rem);
+  --t-cifra: clamp(2.25rem, 1.8rem + 1.8vw, 3rem);
+
+  /* Espacios y medidas */
+  --margen-lateral: clamp(1rem, 4vw, 2rem);
+  --ancho-max: 72rem;
+  --espacio-seccion: clamp(3rem, 2rem + 4vw, 5.5rem);
+  --alto-encabezado: 4.25rem;
+  --radio: 2px;
+  --transicion: 180ms ease;
+}
+
+/* ---------- 2. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--alto-encabezado) + 1rem);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--blanco);
+  color: var(--tinta);
+  font-family: var(--fuente-texto);
+  font-size: var(--t-base);
+  line-height: 1.6;
+  font-optical-sizing: auto;
+}
+
+/* Evita que la página se desplace detrás del lector abierto */
+html:has(dialog[open]) { overflow: hidden; }
+
+img { display: block; max-width: 100%; height: auto; }
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-family: var(--fuente-titulos);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+p { margin: 0; }
+
+a { color: var(--rojo); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { color: var(--rojo-profundo); text-decoration-thickness: 2px; }
+
+/* Foco visible: azul sierra en fondos claros, maíz en fondos oscuros */
+:focus-visible { outline: 3px solid var(--azul); outline-offset: 3px; }
+.pie :focus-visible,
+.destacada__letrero :focus-visible { outline-color: var(--maiz); }
+main:focus { outline: none; }
+
+/* ---------- 3. Utilidades ---------- */
+.contenedor {
+  width: min(100% - 2 * var(--margen-lateral), var(--ancho-max));
+  margin-inline: auto;
+}
+
+.visualmente-oculto {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* Enlace para saltar al contenido (aparece al recibir foco) */
+.saltar {
+  position: absolute; left: 1rem; top: -4rem; z-index: 100;
+  padding: 0.75rem 1rem;
+  background: var(--tinta); color: var(--blanco);
+  font: 600 var(--t-ui) var(--fuente-titulos);
+}
+.saltar:focus { top: 1rem; color: var(--blanco); }
+
+/* Marcadores de contenido pendiente o de ejemplo */
+.marcador {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  background: var(--aviso-fondo); color: var(--aviso);
+  font: 600 var(--t-mini)/1.4 var(--fuente-titulos);
+  border-radius: var(--radio);
+}
+
+/* ---------- 4. Botones y enlaces ---------- */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 2.875rem;
+  padding: 0.6rem 1.15rem;
+  border: 2px solid var(--rojo);
+  border-radius: var(--radio);
+  background: var(--rojo); color: var(--blanco);
+  font: 600 var(--t-ui)/1.2 var(--fuente-titulos);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--transicion), color var(--transicion), border-color var(--transicion);
+}
+.boton:hover { background: var(--rojo-profundo); border-color: var(--rojo-profundo); color: var(--blanco); }
+
+.boton--contorno { background: transparent; color: var(--rojo); }
+.boton--contorno:hover { background: var(--rojo-tenue); color: var(--rojo-profundo); }
+
+.enlace-flecha {
+  font: 600 var(--t-ui) var(--fuente-titulos);
+}
+.enlace-flecha::after { content: " ›"; }
+
+/* ---------- 5. Encabezado fijo ---------- */
+.encabezado {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--blanco);
+  border-top: 4px solid var(--rojo);       /* la cornisa roja de los edificios */
+  border-bottom: 1px solid var(--linea);
+}
+
+.encabezado__barra {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  min-height: var(--alto-encabezado);
+}
+
+.marca { font-size: inherit; }
+.marca__enlace {
+  display: flex; align-items: center; gap: 0.625rem;
+  color: var(--tinta); text-decoration: none;
+}
+.marca__enlace:hover { color: var(--tinta); }
+.marca__logo { width: 2.75rem; height: 2.75rem; }
+.marca__textos { display: grid; line-height: 1.1; }
+
+/* Nombre con letras espaciadas, como la rotulación del arco de entrada */
+.marca__nombre {
+  font: 800 1.125rem/1 var(--fuente-titulos);
+  font-stretch: 125%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rojo);
+}
+.marca__lema {
+  margin-top: 0.2rem;
+  font: 500 var(--t-mini)/1.2 var(--fuente-titulos);
+  color: var(--piedra);
+}
+
+/* Botón de menú (solo celular) */
+.menu-boton {
+  display: none;
+  align-items: center; gap: 0.5rem;
+  min-height: 2.75rem; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--piedra); border-radius: var(--radio);
+  background: var(--blanco); color: var(--tinta);
+  font: 600 var(--t-ui) var(--fuente-titulos);
+  cursor: pointer;
+}
+.js .menu-boton { display: inline-flex; }
+
+/* Ícono de tres líneas hecho con CSS; se convierte en X al abrir */
+.menu-boton__icono,
+.menu-boton__icono::before,
+.menu-boton__icono::after {
+  display: block; width: 1.125rem; height: 2px;
+  background: currentColor;
+  transition: transform var(--transicion), background-color var(--transicion);
+}
+.menu-boton__icono { position: relative; }
+.menu-boton__icono::before,
+.menu-boton__icono::after { content: ""; position: absolute; left: 0; }
+.menu-boton__icono::before { top: -6px; }
+.menu-boton__icono::after { top: 6px; }
+.menu-boton[aria-expanded="true"] .menu-boton__icono { background: transparent; }
+.menu-boton[aria-expanded="true"] .menu-boton__icono::before { transform: translateY(6px) rotate(45deg); }
+.menu-boton[aria-expanded="true"] .menu-boton__icono::after { transform: translateY(-6px) rotate(-45deg); }
+
+/* Navegación: sin JS se muestra siempre; con JS se despliega con el botón */
+.navegacion__lista {
+  display: flex; flex-wrap: wrap; gap: 0.25rem 1rem;
+  margin: 0; padding: 0; list-style: none;
+}
+.navegacion__enlace {
+  display: block; padding: 0.5rem 0;
+  font: 600 var(--t-ui) var(--fuente-titulos);
+  color: var(--tinta); text-decoration: none;
+}
+.navegacion__enlace:hover { color: var(--rojo); }
+.navegacion__enlace.es-activo { color: var(--rojo); box-shadow: inset 0 -3px 0 var(--rojo); }
+
+.js .navegacion {
+  display: none;
+  position: absolute; left: 0; right: 0; top: 100%;
+  background: var(--blanco);
+  border-bottom: 1px solid var(--linea);
+  box-shadow: 0 12px 24px -16px rgb(30 25 24 / 0.35);
+}
+.js .menu-boton[aria-expanded="true"] + .navegacion {
+  display: block;
+  animation: menu-baja 160ms ease-out;
+}
+.js .navegacion__lista {
+  flex-direction: column; gap: 0;
+  width: min(100% - 2 * var(--margen-lateral), var(--ancho-max));
+  margin-inline: auto; padding-block: 0.5rem 1rem;
+}
+.js .navegacion__enlace { padding: 0.85rem 0; font-size: var(--t-medio); border-bottom: 1px solid var(--linea); }
+.js .navegacion__enlace.es-activo { box-shadow: none; }
+
+@keyframes menu-baja {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 6. Noticia destacada (hero con letrero) ---------- */
+.destacada { padding-block: 0; }
+
+.destacada__rejilla { display: grid; }
+
+.destacada__foto {
+  position: relative;
+  margin: 0 calc(var(--margen-lateral) * -1);   /* a sangre en celular */
+}
+.destacada__foto img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: 55% 50%;
+}
+/* Crédito sobre la foto */
+.destacada__credito {
+  position: absolute; top: 0.75rem; right: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: rgb(30 25 24 / 0.78); color: var(--blanco);
+  font: 500 var(--t-mini) var(--fuente-titulos);
+}
+
+/* El letrero: banda roja con letras blancas montada sobre la foto */
+.destacada__letrero {
+  position: relative;
+  margin: -3.5rem calc(var(--margen-lateral) * -1) 0 0;
+  padding: 1.25rem var(--margen-lateral) 1.5rem 1.25rem;
+  background: var(--rojo); color: var(--blanco);
+  animation: letrero-entra 750ms cubic-bezier(0.2, 0.7, 0.2, 1) 120ms both;
+}
+.destacada__meta {
+  display: flex; flex-wrap: wrap; gap: 0.25rem 1rem;
+  margin-bottom: 0.6rem;
+  font: 600 var(--t-chico)/1.3 var(--fuente-titulos);
+}
+.destacada__categoria { color: var(--maiz); }
+.destacada__meta time { color: var(--sobre-rojo-tenue); font-weight: 500; }
+.destacada__titulo {
+  font-size: var(--t-portada);
+  font-weight: 800;
+  font-stretch: 112%;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.destacada__texto { display: grid; gap: 1.25rem; padding-top: 1.5rem; }
+.destacada__entrada { font-size: var(--t-medio); line-height: 1.55; max-width: 38rem; }
+.lugar {
+  font: 700 0.92em var(--fuente-titulos);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.04em;
+}
+.destacada__acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+@keyframes letrero-entra {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* ---------- 7. Secciones ---------- */
+.seccion { padding-block: var(--espacio-seccion); }
+.seccion--cal { background: var(--cal); }
+
+.seccion__cabecera { display: grid; gap: 0.6rem; margin-bottom: 2rem; max-width: 42rem; }
+.seccion__titulo { font-size: var(--t-seccion); font-weight: 800; font-stretch: 112%; }
+.seccion__entrada { color: var(--piedra); }
+
+.subtitulo {
+  margin-bottom: 1.25rem;
+  font-size: var(--t-medio); font-weight: 700; font-stretch: 108%;
+}
+
+/* ---------- 8. Noticias: filtros y tarjetas ---------- */
+.filtros { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
+.filtro {
+  min-height: 2.5rem; padding: 0.4rem 0.9rem;
+  border: 1px solid var(--piedra); border-radius: var(--radio);
+  background: var(--blanco); color: var(--tinta);
+  font: 600 var(--t-chico) var(--fuente-titulos);
+  cursor: pointer;
+  transition: background-color var(--transicion), color var(--transicion);
+}
+.filtro:hover { background: var(--rojo-tenue); }
+.filtro[aria-pressed="true"] { background: var(--rojo); border-color: var(--rojo); color: var(--blanco); }
+
+.rejilla-noticias {
+  display: grid; gap: 2.5rem 2rem;
+  grid-template-columns: 1fr;
+}
+
+.tarjeta { position: relative; display: grid; align-content: start; gap: 1rem; }
+.tarjeta__portada { aspect-ratio: 3 / 2; overflow: hidden; background: var(--cal); }
+.tarjeta__portada img { width: 100%; height: 100%; object-fit: cover; }
+.tarjeta__cuerpo { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.tarjeta__meta { order: -1; }              /* visualmente arriba del título */
+.tarjeta__titulo { font-size: var(--t-medio); font-weight: 700; font-stretch: 105%; line-height: 1.2; }
+.tarjeta__enlace { color: var(--tinta); text-decoration: none; }
+.tarjeta__enlace::after { content: ""; position: absolute; inset: 0; }  /* toda la tarjeta es clicable */
+.tarjeta:hover .tarjeta__enlace { color: var(--rojo); text-decoration: underline; text-decoration-thickness: 2px; }
+.tarjeta__enlace:focus-visible { outline: none; }
+.tarjeta:has(.tarjeta__enlace:focus-visible) { outline: 3px solid var(--azul); outline-offset: 6px; }
+.tarjeta__resumen {
+  color: var(--piedra); font-size: var(--t-ui);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Meta: categoría y fecha */
+.meta {
+  display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem;
+  font: 600 var(--t-chico)/1.3 var(--fuente-titulos);
+}
+.meta__categoria { color: var(--rojo); }
+.meta time { color: var(--piedra); font-weight: 500; }
+
+/* Portada tipográfica: un muro claro con un letrero de color */
+.portada-letrero {
+  display: grid; align-content: center;
+  width: 100%; height: 100%;
+  background: var(--cal);
+}
+.portada-letrero__banda {
+  padding: 0.9rem 1.25rem;
+  background: var(--rojo); color: var(--blanco);
+  font: 700 clamp(0.95rem, 0.8rem + 0.6vw, 1.15rem)/1.25 var(--fuente-titulos);
+  font-stretch: 125%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.portada-letrero--azul .portada-letrero__banda { background: var(--azul); }
+.portada-letrero--maiz .portada-letrero__banda { background: var(--maiz); color: var(--tinta); }
+.portada-letrero--tinta .portada-letrero__banda { background: var(--tinta); }
+
+.noticias__mas { display: flex; justify-content: center; margin-top: 2.5rem; }
+.noticias__vacio { color: var(--piedra); }
+
+/* ---------- 9. Información institucional ---------- */
+.institucional__intro { display: grid; gap: 2rem; margin-bottom: 3.5rem; }
+.institucional__texto { display: grid; gap: 1rem; max-width: 40rem; }
+.institucional__texto .seccion__titulo { margin-bottom: 0.25rem; }
+
+.dia-unsis { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.dia-unsis li { padding-left: 1.25rem; position: relative; }
+.dia-unsis li::before {               /* pequeño letrero rojo como viñeta */
+  content: ""; position: absolute; left: 0; top: 0.55em;
+  width: 0.55rem; height: 0.55rem; background: var(--rojo);
+}
+.dia-unsis strong { font-weight: 600; }
+
+.institucional__foto { margin: 0; }
+.institucional__foto img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; }
+.institucional__foto figcaption,
+.egresados__foto figcaption {
+  margin-top: 0.6rem; color: var(--piedra); font-size: var(--t-chico);
+}
+
+/* Cifras clave */
+.cifras {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem 1.5rem;
+  margin: 0 0 3.5rem; padding-top: 1.5rem;
+  border-top: 4px solid var(--rojo);
+}
+.cifra { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 0.35rem; }
+.cifra dd {
+  margin: 0;
+  font: 800 var(--t-cifra)/1 var(--fuente-titulos);
+  font-stretch: 115%;
+  font-variant-numeric: tabular-nums;
+  color: var(--rojo);
+}
+.cifra dt { font: 500 var(--t-chico)/1.35 var(--fuente-titulos); color: var(--piedra); }
+.cifra .marcador { margin-top: 0.35rem; }
+
+.institucional__columnas { display: grid; gap: 3rem; }
+
+.oferta__nivel {
+  margin: 1.5rem 0 0.5rem;
+  font: 700 var(--t-ui) var(--fuente-titulos); color: var(--piedra);
+}
+.oferta__nivel:first-of-type { margin-top: 0; }
+.oferta__lista { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.oferta__lista li { border-bottom: 1px solid var(--linea); }
+.oferta__lista a {
+  display: block; padding: 0.6rem 0;
+  font: 500 var(--t-ui) var(--fuente-titulos);
+  color: var(--tinta); text-decoration: none;
+}
+.oferta__lista a:hover { color: var(--rojo); }
+.oferta__acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
+
+/* Línea de tiempo: el orden de los años es información real */
+.linea-tiempo { margin: 0; padding: 0; list-style: none; border-left: 2px solid var(--rojo); }
+.linea-tiempo li {
+  position: relative;
+  display: grid; grid-template-columns: 3.5rem 1fr; gap: 0.75rem;
+  padding: 0 0 1.1rem 1.25rem;
+}
+.linea-tiempo li::before {
+  content: ""; position: absolute; left: -7px; top: 0.35rem;
+  width: 12px; height: 12px; background: var(--rojo);
+}
+.linea-tiempo__anio {
+  font: 800 var(--t-ui)/1.6 var(--fuente-titulos);
+  font-variant-numeric: tabular-nums; color: var(--rojo);
+}
+.linea-tiempo p { font-size: var(--t-ui); }
+.nota-fuente { margin-top: 0.75rem; color: var(--piedra); font-size: var(--t-chico); }
+
+/* ---------- 10. Egresados ---------- */
+.egresados__rejilla { display: grid; gap: 2.5rem; }
+.egresados__cabecera { display: grid; gap: 0.6rem; align-content: start; }
+.egresados__foto { margin: 1rem 0 0; }
+.egresados__foto img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+
+.testimonios { display: grid; margin: 0; padding: 0; list-style: none; }
+.testimonio { margin: 0; padding-block: 1.75rem; border-top: 1px solid var(--linea); }
+.testimonio:first-child { padding-top: 0; border-top: 0; }
+.testimonio blockquote { position: relative; margin: 0 0 1rem; padding-left: 2rem; }
+.testimonio blockquote::before {
+  content: "“"; position: absolute; left: 0; top: -0.2rem;
+  font: 800 2.75rem/1 var(--fuente-titulos); color: var(--rojo);
+}
+.testimonio blockquote p { font-size: var(--t-medio); font-style: italic; line-height: 1.5; }
+.testimonio figcaption { display: grid; gap: 0.15rem; padding-left: 2rem; font-family: var(--fuente-titulos); }
+.testimonio__nombre { font-weight: 700; }
+.testimonio__dato { color: var(--piedra); font-size: var(--t-chico); }
+.testimonio .marcador { justify-self: start; margin-top: 0.4rem; }
+
+/* ---------- 11. Agenda ---------- */
+.agenda__lista { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linea); }
+.evento {
+  display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 1rem;
+  padding-block: 1.5rem; border-bottom: 1px solid var(--linea);
+}
+.evento--concluido { opacity: 0.72; }
+
+/* Fecha en un pequeño letrero */
+.evento__fecha {
+  display: grid; align-content: center; justify-items: center;
+  align-self: start;
+  min-height: 5rem; padding: 0.5rem 0.25rem;
+  background: var(--rojo); color: var(--blanco);
+  font-family: var(--fuente-titulos); text-align: center;
+}
+.evento__dias { font-weight: 800; font-size: 1.375rem; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.evento__mes { margin-top: 0.2rem; color: var(--maiz); font-size: var(--t-mini); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.evento--concluido .evento__fecha { background: var(--piedra); }
+.evento--concluido .evento__mes { color: var(--blanco); }
+
+.evento__cuerpo { display: grid; gap: 0.4rem; align-content: start; }
+.evento__titulo { font-size: var(--t-medio); font-weight: 700; line-height: 1.2; }
+.evento__lugar { font: 600 var(--t-chico) var(--fuente-titulos); color: var(--piedra); }
+.evento__descripcion { font-size: var(--t-ui); overflow-wrap: anywhere; }
+.evento__enlace { font: 600 var(--t-ui) var(--fuente-titulos); justify-self: start; }
+
+/* Chips de estado */
+.estado {
+  justify-self: start;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radio);
+  font: 700 var(--t-mini)/1.5 var(--fuente-titulos);
+}
+.estado--info { background: var(--info-fondo); color: var(--info); }
+.estado--exito { background: var(--exito-fondo); color: var(--exito); }
+.estado--aviso { background: var(--aviso-fondo); color: var(--aviso); }
+.estado--error { background: var(--error-fondo); color: var(--error); }
+.estado--neutro { background: var(--linea); color: var(--tinta); }
+
+/* ---------- 12. Pie de página ---------- */
+.pie {
+  padding-block: var(--espacio-seccion) 1.5rem;
+  background: var(--rojo-profundo); color: var(--blanco);
+  font-size: var(--t-ui);
+}
+.pie a { color: var(--blanco); }
+.pie a:hover { color: var(--maiz); }
+.pie p { margin-bottom: 0.5rem; }
+.pie__rejilla { display: grid; gap: 2.5rem; }
+.pie__logo { width: 4.5rem; height: 4.5rem; padding: 0.3rem; background: var(--blanco); border-radius: 50%; margin-bottom: 1rem; }
+.pie__nombre {
+  font: 800 var(--t-medio)/1 var(--fuente-titulos);
+  font-stretch: 125%; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.pie__marca p:last-child { color: var(--sobre-pie); }
+.pie__titulo { margin-bottom: 0.9rem; font-size: var(--t-ui); font-weight: 700; color: var(--maiz); }
+.pie__direccion { margin-bottom: 0.75rem; font-style: normal; color: var(--sobre-pie); }
+.pie__lista { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.pie__legal {
+  margin-top: 3rem; padding-top: 1.25rem;
+  border-top: 1px solid rgb(255 255 255 / 0.2);
+  color: var(--sobre-pie); font-size: var(--t-chico);
+}
+
+/* ---------- 13. Lector de notas (dialog) ---------- */
+.lector {
+  width: min(100% - 1.5rem, 46rem);
+  max-height: calc(100dvh - 1.5rem);
+  margin: auto; padding: 0;
+  border: 0; border-top: 6px solid var(--rojo);
+  background: var(--blanco); color: var(--tinta);
+  box-shadow: 0 24px 64px -24px rgb(30 25 24 / 0.6);
+}
+.lector::backdrop { background: rgb(30 25 24 / 0.6); }
+.lector[open] { animation: lector-abre 220ms ease-out; }
+.lector__marco { position: relative; }
+.lector__cerrar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; gap: 0.35rem; margin-left: auto;
+  min-height: 2.75rem; padding: 0.5rem 1rem;
+  border: 0; background: var(--blanco); color: var(--rojo);
+  font: 700 var(--t-ui) var(--fuente-titulos);
+  cursor: pointer;
+}
+.lector__cerrar:hover { color: var(--rojo-profundo); text-decoration: underline; }
+.lector__cerrar:focus-visible { outline-offset: -4px; }
+.lector__contenido { display: grid; gap: 1.1rem; padding: 0 clamp(1.25rem, 4vw, 2.5rem) 2.5rem; }
+.lector__portada { margin: 0 calc(clamp(1.25rem, 4vw, 2.5rem) * -1); aspect-ratio: 2 / 1; overflow: hidden; }
+.lector__portada img { width: 100%; height: 100%; object-fit: cover; }
+.lector__credito { margin-top: -0.6rem; color: var(--piedra); font-size: var(--t-chico); }
+.lector__titulo { font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.125rem); font-weight: 800; font-stretch: 110%; }
+.lector__contenido > p, .lector__contenido ul { max-width: 65ch; }
+.lector__contenido ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.5rem; }
+.lector__enlaces { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
+
+@keyframes lector-abre {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.aviso-sin-js { margin-top: 2rem; padding: 1rem 1.25rem; background: var(--aviso-fondo); color: var(--aviso); }
+
+/* ---------- 14. Página de error (error.html) ---------- */
+/* Sin JS el menú se muestra completo: que pueda bajar de renglón en celular */
+html:not(.js) .encabezado__barra { flex-wrap: wrap; padding-block: 0.5rem; }
+
+.error { padding-bottom: var(--espacio-seccion); }
+.error__rejilla { display: grid; }
+
+.error__foto { margin: 0 calc(var(--margen-lateral) * -1); }   /* a sangre en celular */
+.error__foto img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: 38% 50%;   /* deja a la vista el letrero "Postgrado" */
+}
+
+/* Mismo letrero rojo que la noticia destacada */
+.error__letrero {
+  position: relative;
+  margin: -3.5rem calc(var(--margen-lateral) * -1) 0 0;
+  padding: 1.25rem var(--margen-lateral) 1.5rem 1.25rem;
+  background: var(--rojo); color: var(--blanco);
+  animation: letrero-entra 750ms cubic-bezier(0.2, 0.7, 0.2, 1) 120ms both;
+}
+.error__codigo {
+  margin-bottom: 0.5rem;
+  font: 700 var(--t-chico)/1.3 var(--fuente-titulos);
+  font-stretch: 125%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--maiz);
+}
+.error__titulo {
+  font-size: var(--t-portada);
+  font-weight: 800;
+  font-stretch: 112%;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.error__texto { display: grid; gap: 1.25rem; padding-top: 1.5rem; max-width: 40rem; }
+.error__entrada { font-size: var(--t-medio); line-height: 1.55; }
+.error__acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* Lista de destinos: toda la fila es clicable, como las tarjetas */
+.destinos {
+  display: grid; column-gap: 2rem;
+  margin: 0; padding: 0; list-style: none;
+  border-top: 4px solid var(--rojo);
+}
+.destino {
+  position: relative;
+  display: grid; gap: 0.35rem; align-content: start;
+  padding-block: 1.25rem;
+  border-bottom: 1px solid var(--linea);
+}
+.destino__titulo { font-size: var(--t-medio); font-weight: 700; font-stretch: 105%; line-height: 1.2; }
+.destino__titulo::after { content: " ›"; color: var(--rojo); }
+.destino__enlace { color: var(--tinta); text-decoration: none; }
+.destino__enlace::after { content: ""; position: absolute; inset: 0; }
+.destino:hover .destino__enlace { color: var(--rojo); text-decoration: underline; text-decoration-thickness: 2px; }
+.destino__enlace:focus-visible { outline: none; }
+.destino:has(.destino__enlace:focus-visible) { outline: 3px solid var(--azul); outline-offset: 4px; }
+.destino p { color: var(--piedra); font-size: var(--t-ui); }
+
+.error__ayuda { margin-top: 2rem; color: var(--piedra); font-size: var(--t-ui); }
+
+@media (min-width: 40rem) {
+  .error { padding-top: 2rem; }
+  .error__foto { margin-inline: 0; }
+  .error__foto img { aspect-ratio: 21 / 9; }
+  .error__letrero { justify-self: start; max-width: 36rem; margin: -4.5rem 0 0 2.5rem; padding: 1.5rem 2rem 1.75rem; }
+  .destinos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 64rem) {
+  /* Foto a todo lo ancho; abajo, el letrero a la izquierda y el texto a la derecha */
+  .error__rejilla { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 2rem; }
+  .error__foto { grid-column: 1 / 13; }
+  .error__foto img { aspect-ratio: 5 / 2; }
+  .error__letrero { grid-column: 1 / 7; align-self: start; max-width: none; margin: -6rem 0 0 2.5rem; padding: 1.75rem 2.25rem 2rem; }
+  .error__texto { grid-column: 7 / 13; padding-top: 2rem; }
+  .destinos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ==========================================================================
+   Tableta (≥ 40rem / 640px)
+   ========================================================================== */
+@media (min-width: 40rem) {
+  .rejilla-noticias { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cifras { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .destacada { padding-top: 2rem; }
+  .destacada__foto { margin-inline: 0; }
+  .destacada__foto img { aspect-ratio: 16 / 9; }
+  .destacada__letrero { margin: -4.5rem 0 0 2.5rem; padding: 1.5rem 2rem 1.75rem; }
+
+  .evento { grid-template-columns: 6rem minmax(0, 1fr); gap: 1.5rem; }
+  .pie__rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ==========================================================================
+   Navegación en línea (≥ 48rem / 768px)
+   ========================================================================== */
+@media (min-width: 48rem) {
+  :root { --alto-encabezado: 4.75rem; }
+  .marca__logo { width: 3rem; height: 3rem; }
+
+  .js .menu-boton { display: none; }
+  .js .navegacion,
+  .js .menu-boton[aria-expanded="true"] + .navegacion {
+    display: block; position: static;
+    border: 0; box-shadow: none; animation: none;
+  }
+  .js .navegacion__lista,
+  .navegacion__lista {
+    flex-direction: row; gap: 1.5rem;
+    width: auto; margin: 0; padding: 0;
+  }
+  .js .navegacion__enlace { padding: 0.5rem 0; font-size: var(--t-ui); border: 0; }
+  .js .navegacion__enlace.es-activo { box-shadow: inset 0 -3px 0 var(--rojo); }
+}
+
+/* ==========================================================================
+   Escritorio (≥ 64rem / 1024px)
+   ========================================================================== */
+@media (min-width: 64rem) {
+  .rejilla-noticias { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cifras { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+  /* Hero: foto a la izquierda, texto a la derecha y el letrero
+     abajo, montado sobre la esquina de la foto */
+  .destacada__rejilla {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    column-gap: 2rem;
+  }
+  .destacada__foto { grid-column: 1 / 9; grid-row: 1 / 3; align-self: start; }
+  .destacada__foto img { aspect-ratio: 4 / 3; }   /* más alta para que el letrero siempre la monte */
+  .destacada__texto { grid-column: 9 / 13; grid-row: 1; align-self: start; padding-top: 0; }
+  .destacada__entrada { font-size: var(--t-base); }
+  .destacada__acciones { flex-direction: column; align-items: flex-start; }
+  .destacada__letrero {
+    grid-column: 5 / 13; grid-row: 2; align-self: end;
+    margin: 1.5rem 0 0;
+    padding: 1.75rem 2.25rem 2rem;
+  }
+
+  .institucional__intro { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; gap: 3.5rem; }
+  .institucional__columnas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4rem; }
+
+  .egresados__rejilla { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 4rem; }
+  .egresados__cabecera { position: sticky; top: calc(var(--alto-encabezado) + 2rem); }
+
+  .pie__rejilla { grid-template-columns: 1.3fr 1.2fr 1fr 1fr; }
+}
+
+@media (min-width: 80rem) {
+  .destacada__foto img { aspect-ratio: 3 / 2; }
+}
+
+/* ---------- Movimiento reducido: sin animaciones ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Formulario de publicación */
+.formulario-noticia { max-width: 48rem; margin-top: 1.5rem; }
+.formulario-noticia fieldset { display: grid; gap: 1rem; border: 1px solid var(--linea); padding: 1.25rem; min-width: 0; }
+.formulario-noticia legend { font-weight: 700; padding-inline: .5rem; }
+.formulario-noticia label { display: grid; gap: .4rem; font-family: var(--fuente-titulos); font-weight: 600; }
+.formulario-noticia input:not([type="checkbox"]), .formulario-noticia textarea { width: 100%; min-width: 0; padding: .7rem; border: 1px solid var(--piedra); border-radius: var(--radio); background: var(--blanco); color: var(--tinta); font: inherit; }
+.formulario-noticia textarea { resize: vertical; }
+.formulario-noticia__fila { display: grid; gap: 1rem; }
+.formulario-noticia .formulario-noticia__casilla { display: flex; align-items: center; gap: .6rem; }
+.formulario-noticia__ayuda { color: var(--piedra); font-size: var(--t-chico); }
+.formulario-noticia button { justify-self: start; }
+button:disabled { opacity: .6; cursor: wait; }
+#noticias-estado, #publicacion-estado { margin-block: 1rem; }
+#recargar-noticias { margin-bottom: 1rem; }
+@media (min-width: 40rem) { .formulario-noticia__fila { grid-template-columns: 1fr 1fr; } }
