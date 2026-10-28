@@ -1,0 +1,331 @@
+<!doctype html><html lang='es'><head><meta charset='utf-8'><title>Manual de implementación</title><style>
+@page { size: A4; margin: 16mm 14mm; }
+body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #1d1d1f; }
+h1 { color: #7a1512; border-bottom: 3px solid #7a1512; padding-bottom: 6px; font-size: 20pt; }
+h2 { color: #7a1512; margin-top: 28px; page-break-after: avoid; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+h3 { margin-top: 18px; page-break-after: avoid; }
+img { display: block; max-width: 100%; max-height: 150mm; margin: 8px auto 14px; border: 1px solid #ccc; page-break-inside: avoid; }
+table { border-collapse: collapse; width: 100%; font-size: 9pt; margin: 8px 0; }
+th, td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; vertical-align: top; }
+th { background: #f3e9e8; }
+code { background: #f4f4f4; padding: 0 3px; border-radius: 3px; font-size: 9pt; }
+hr { border: none; border-top: 1px solid #ccc; margin: 22px 0; }
+blockquote { border-left: 4px solid #7a1512; margin: 12px 0; padding: 4px 12px; background: #faf4f2; }
+</style></head><body><h1>Manual de implementación — Equipo 3: Monitoreo y resiliencia</h1>
+<p><strong>Proyecto:</strong> Gaceta Universitaria «El Unsito», UNSIS<br />
+<strong>Región:</strong> us-east-2 (Ohio) · <strong>Cuenta:</strong> 2167-2824-0051 (plan gratuito con créditos)<br />
+<strong>Fecha de ejecución:</strong> 27 de octubre de 2026, 23:15–23:52 UTC<br />
+<strong>Herramientas:</strong> consola web de AWS en el navegador (Lambda, S3, DynamoDB, IAM, CloudWatch)</p>
+<blockquote>
+<p><strong>Nota sobre las capturas:</strong> la implementación y las pruebas se hicieron el 27 de octubre. Las capturas originales salían borrosas, así que el 28 de octubre todas se volvieron a tomar en resolución nativa (pantalla 4K). Para eso se volvieron a abrir las mismas pantallas. Los formularios se llenaron igual y se cancelaron sin guardar. «Probar» se volvió a ejecutar con los eventos de P03 y P07, y P01 y P08 se repitieron desde el sitio. Por eso algunas pantallas muestran el estado del 28 de octubre: por ejemplo, ya aparece la procesadora en la lista de funciones y la tabla tiene más elementos. Las capturas originales del 27 se conservan en <code>evidencias/</code> como archivos <code>.jpg</code>, y las de alta resolución como <code>.png</code>.</p>
+</blockquote>
+<p>Este manual documenta, paso a paso y con capturas reales, cómo se integró la publicación de noticias con un evento de S3 que activa una Lambda procesadora, y cómo se añadieron logs, métricas, alarma y pruebas de resiliencia. Las capturas originales están en <code>evidencias/</code> (en este manual, recortadas en <code>documentacion/img/</code>) y no contienen credenciales; las URL prefirmadas no se muestran.</p>
+<h2>Arquitectura</h2>
+<p><strong>Antes:</strong> el navegador subía la imagen con una URL prefirmada y luego llamaba por HTTP a la Lambda <code>agregarNoticia</code>.</p>
+<p><strong>Después:</strong></p>
+<ol>
+<li>El navegador envía los datos de la noticia a la Lambda <code>cors</code> (prefirmadas).</li>
+<li>La Lambda valida, asigna un id y guarda <code>pendientes/ID.json</code> en el bucket de imágenes.</li>
+<li>Devuelve <code>uploadUrl</code> para <code>imagenes/ID/foto.ext</code>.</li>
+<li>El navegador sube la imagen con PUT.</li>
+<li>El evento <code>s3:ObjectCreated:*</code> con prefijo <code>imagenes/</code> invoca la nueva Lambda <code>procesar-imagen-noticia</code>.</li>
+<li>La procesadora lee el pendiente, valida y escribe en DynamoDB con <code>attribute_not_exists(id)</code>.</li>
+<li>El navegador consulta <code>obtenerNoticias?id=ID</code> cada 2 s, hasta 10 veces, y distingue entre noticia pendiente y publicada.</li>
+</ol>
+<p>Las noticias <strong>sin imagen</strong> siguen usando la Lambda <code>agregarNoticia</code>, porque no generan evento de S3.</p>
+<hr />
+<h2>Fase A · Diagnóstico inicial</h2>
+<h3>A1. Saldo inicial</h3>
+<p>Página de inicio de la consola: 120,00 USD en créditos y 0,00 USD de gasto en el mes.</p>
+<p><img alt="Saldo inicial" src="img/costos/01-saldo-inicial.png" /></p>
+<h3>A2. Inventario de recursos</h3>
+<p>En <strong>Lambda &gt; Funciones</strong> aparecen tres funciones: <code>obtenerNoticias</code>, <code>agregarNoticia</code> y <code>cors</code>. Esta última es la que genera las URL prefirmadas.</p>
+<p><img alt="Funciones Lambda (recaptura del 28 de octubre: ya incluye la procesadora creada en B2)" src="img/lambda/02-lista-funciones.png" /></p>
+<p><em>En la recaptura del 28 de octubre ya aparece también <code>procesar-imagen-noticia</code>, creada en la fase B.</em></p>
+<p>En <code>cors</code> &gt; <strong>Configuración &gt; URL de la función</strong>, el CORS ya permite el origen del sitio, el encabezado <code>content-type</code> y los métodos POST y GET. No hizo falta cambiarlo para enviar JSON.</p>
+<p><img alt="CORS de la Lambda de prefirmadas" src="img/lambda/03-cors-prefirmadas.png" /></p>
+<p>Las tres funciones usan el rol <code>PowerUserRole</code>, que tiene la política administrada <code>PowerUserAccess</code> y la política insertada <code>URLprefirmada</code>. Ese rol ya cubre S3, DynamoDB y CloudWatch Logs, así que no se modificó IAM.</p>
+<p><img alt="Rol PowerUserRole" src="img/lambda/03b-rol-poweruser.png" /></p>
+<p>En <strong>S3 &gt; mis-noticias-daniel-imagenes-906-2026 &gt; Permisos &gt; CORS</strong> se permite PUT, POST y GET.</p>
+<p><img alt="CORS del bucket de imágenes" src="img/s3/04-cors-bucket-imagenes.png" /></p>
+<p>En <strong>DynamoDB &gt; Tablas &gt; noticias</strong>, la clave de partición es <code>id (String)</code>, la capacidad es bajo demanda y había 6 elementos el 27 de octubre. En la recaptura ya hay más elementos, que son las noticias de prueba.</p>
+<p><img alt="Tabla noticias" src="img/dynamodb/05-tabla-noticias.png" /></p>
+<h3>A3. Prueba del flujo inicial</h3>
+<p>Se publicó «Prueba inicial E3 (flujo actual)» con imagen desde el sitio. Después de recargar, la noticia aparece en el sitio. En la recaptura se abrió directamente esa noticia.</p>
+<p><img alt="Flujo inicial publicado" src="img/lambda/06-flujo-inicial-publicado.png" /></p>
+<hr />
+<h2>Fase B · S3 → Lambda → DynamoDB</h2>
+<h3>B1. Respaldo y nueva versión de la Lambda de prefirmadas</h3>
+<ol>
+<li>Se abrió <code>cors</code> &gt; <strong>Código</strong> y se transcribió el código desplegado a <code>lambdas/prefirmadas-original.mjs</code>, como respaldo.</li>
+<li>Se reemplazó <code>index.mjs</code> por <code>lambdas/prefirmar-noticia.mjs</code> y se pulsó <strong>Deploy</strong>.</li>
+<li>El modo anterior <code>POST ?file=nombre</code> se conserva sin cambios, para no interrumpir a quien tenga la página antigua en caché.</li>
+<li>El modo nuevo recibe JSON con <code>id, titulo, detalle, fecha, categoria, alt, tipo</code>. Primero guarda <code>pendientes/ID.json</code> y después firma <code>imagenes/ID/foto.ext</code>.</li>
+<li>Se verificó desde la terminal que los dos modos responden: el anterior devuelve <code>uploadUrl</code> y el nuevo valida los campos.</li>
+</ol>
+<p><img alt="Prefirmadas desplegada" src="img/lambda/07-prefirmadas-desplegada.png" /></p>
+<h3>B2. Crear la Lambda procesadora</h3>
+<ol>
+<li>En <strong>Lambda &gt; Create function &gt; Crear desde cero</strong> se configuró:</li>
+<li>Nombre: <code>procesar-imagen-noticia</code></li>
+<li>Runtime: Node.js 24.x</li>
+<li>En <strong>Configuración adicional</strong>, se activó <strong>Rol de ejecución personalizada</strong>, con <strong>Use existing role</strong> y <code>PowerUserRole</code>.</li>
+</ol>
+<p><img alt="Crear procesadora" src="img/lambda/08a-crear-procesadora.png" /></p>
+<ol>
+<li>Se pegó <code>lambdas/procesar-imagen.mjs</code> en <code>index.mjs</code> y se pulsó <strong>Deploy</strong>.</li>
+</ol>
+<p><img alt="Procesadora desplegada" src="img/lambda/08-procesadora-creada.png" /></p>
+<ol>
+<li>En <strong>Configuración general</strong>, el tiempo de espera pasó de 3 s a 30 s.</li>
+<li>En <strong>Variables de entorno</strong> se agregaron <code>TABLA = noticias</code> y <code>BUCKET = mis-noticias-daniel-imagenes-906-2026</code>. La variable <code>TABLA</code> se usa después para simular un fallo sin tocar la tabla real.</li>
+</ol>
+<p><img alt="Variables de entorno" src="img/lambda/08b-variables-entorno.png" /></p>
+<h3>B3. Disparador S3</h3>
+<ol>
+<li>En la procesadora se pulsó <strong>Agregar desencadenador &gt; S3</strong> y se configuró:</li>
+<li>Bucket: <code>mis-noticias-daniel-imagenes-906-2026</code></li>
+<li>Tipo de evento: <strong>Todos los eventos de creación de objetos</strong></li>
+<li>Prefijo: <code>imagenes/</code></li>
+<li>Se marcó el aviso de invocación recurrente. No hay ciclo, porque la procesadora solo lee de S3 y escribe en DynamoDB, y los pendientes están fuera del prefijo <code>imagenes/</code>.</li>
+</ol>
+<p><img alt="Configuración del disparador" src="img/s3/09a-config-trigger.png" /></p>
+<p><em>En la recaptura, el formulario muestra en rojo «No puede haber prefijos superpuestos…» porque la regla ya existía. La recaptura se canceló sin guardar.</em></p>
+<p><img alt="Disparador creado" src="img/s3/09-trigger-s3.png" /></p>
+<ol>
+<li>Lambda creó la política basada en recursos que permite a <code>s3.amazonaws.com</code> invocar la función, restringida por <code>AWS:SourceAccount</code> y <code>AWS:SourceArn</code> del bucket.</li>
+</ol>
+<p><img alt="Política de invocación" src="img/lambda/10-politica-invocacion-s3.png" /></p>
+<ol>
+<li>En <strong>S3 &gt; bucket &gt; Propiedades &gt; Notificaciones de eventos</strong> aparece la regla con el filtro <code>imagenes/</code> y destino <code>procesar-imagen-noticia</code>.</li>
+</ol>
+<p><img alt="Notificación de eventos" src="img/s3/11-notificacion-evento.png" /></p>
+<h3>B4. Consulta por id en <code>obtenerNoticias</code></h3>
+<p>Se reemplazó el código por <code>lambdas/obtener-noticias.mjs</code> y se pulsó <strong>Deploy</strong>. Ahora <code>GET ?id=ID</code> usa <code>GetItem</code> con lectura consistente y responde <code>{"estado":"pendiente"}</code> o <code>{"estado":"publicada","item":…}</code>. El listado completo sigue funcionando igual.</p>
+<p><img alt="Obtener desplegada" src="img/lambda/11b-obtener-desplegada.png" /></p>
+<h3>B5. Publicar el frontend</h3>
+<ol>
+<li>En <strong>S3 &gt; 906-unsis-daniel &gt; js/ &gt; Cargar</strong> se subió <code>js/main.js</code> con el metadato <code>Content-Type: application/javascript</code>.</li>
+</ol>
+<p><img alt="Objeto js/main.js en el bucket del sitio" src="img/s3/11c-subida-mainjs.png" /></p>
+<p><em>La recaptura muestra el objeto <code>js/main.js</code> ya subido, con su fecha de modificación.</em></p>
+<ol>
+<li><strong>Problema encontrado:</strong> el navegador seguía ejecutando el <code>main.js</code> anterior, porque <code>index.html</code> lo carga con un parámetro de versión fijo (<code>?v=noticias-compatibilidad-6</code>). Se cambió a <code>?v=noticias-s3-evento-1</code> en <code>index.html</code> y se subió también ese archivo. Las páginas guardadas en la caché del navegador siguen usando el flujo anterior hasta que caduca la caché, y por eso se mantuvo compatible el modo <code>?file=</code>.</li>
+</ol>
+<hr />
+<h2>Fase C · Logs, métricas y alarma</h2>
+<h3>C1. Logs estructurados y retención</h3>
+<p>La procesadora registra una línea JSON por etapa (<code>inicio</code>, <code>validado</code>, <code>guardado</code>, <code>duplicado</code>, <code>validacion_fallida</code>, <code>omitido_sin_formato</code> y <code>fallo</code>) con <code>requestId</code>, <code>bucket</code>, <code>key</code>, <code>noticiaId</code> y <code>duracionMs</code>. No registra firmas ni el contenido de la noticia.</p>
+<p>En <strong>CloudWatch &gt; Grupos de registros &gt; /aws/lambda/procesar-imagen-noticia &gt; Acciones &gt; Editar configuración de retención</strong> se eligieron 3 días.</p>
+<p><img alt="Retención de logs" src="img/cloudwatch/12-retencion-logs.png" /></p>
+<h3>C2. Invocación asíncrona</h3>
+<p>En <strong>Configuración &gt; Invocación asíncrona</strong> se fijó la antigüedad máxima del evento en 1 hora, con 2 reintentos. No se configuró cola de mensajes fallidos (DLQ); queda como mejora opcional.</p>
+<p><img alt="Invocación asíncrona" src="img/lambda/13-invocacion-asincrona.png" /></p>
+<h3>C3. Alarma de errores</h3>
+<p>En <strong>CloudWatch &gt; Alarmas &gt; Crear alarma</strong> se configuró:</p>
+<ul>
+<li>Métrica: <code>AWS/Lambda</code> · <code>Errors</code> · <code>FunctionName = procesar-imagen-noticia</code></li>
+<li>Estadística: Suma; periodo: 1 minuto; condición: mayor o igual que 1; puntos de datos: 1 de 1</li>
+<li>Datos faltantes: tratados como correctos (dentro del límite)</li>
+<li>Sin acciones. No se configuró SNS para no generar suscripciones de correo; puede agregarse en <strong>Acciones &gt; Notificación</strong>.</li>
+<li>Nombre: <code>gaceta-procesadora-errores</code></li>
+</ul>
+<p><img alt="Condiciones de la alarma" src="img/cloudwatch/14a-alarma-condiciones.png" />
+<img alt="Alarma creada" src="img/cloudwatch/14-alarma-creada.png" /></p>
+<h3>C4. Rol de mínimo privilegio para la procesadora</h3>
+<p>Al principio, la procesadora usaba <code>PowerUserRole</code>. Ese rol tiene <code>PowerUserAccess</code>, que da muchos más permisos de los necesarios. El 28 de octubre se creó un rol propio solo con lo que la función usa. La política está en <code>documentacion/iam/procesadora-politica.json</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Permiso</th>
+<th>Recurso</th>
+<th>Para qué</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>logs:CreateLogGroup</code></td>
+<td><code>arn:aws:logs:us-east-2:216728240051:*</code></td>
+<td>Crear su grupo de logs</td>
+</tr>
+<tr>
+<td><code>logs:CreateLogStream</code>, <code>logs:PutLogEvents</code></td>
+<td><code>/aws/lambda/procesar-imagen-noticia:*</code></td>
+<td>Escribir solo en sus propios logs</td>
+</tr>
+<tr>
+<td><code>s3:GetObject</code></td>
+<td><code>mis-noticias-daniel-imagenes-906-2026/pendientes/*</code></td>
+<td>Leer el JSON de la noticia; no puede leer imágenes ni el resto del bucket</td>
+</tr>
+<tr>
+<td><code>s3:ListBucket</code> con condición <code>s3:prefix = pendientes/*</code></td>
+<td>el bucket de imágenes</td>
+<td>Que un pendiente ausente responda <code>NoSuchKey</code> y no <code>AccessDenied</code>, para tratarlo como fallo terminal (P03)</td>
+</tr>
+<tr>
+<td><code>dynamodb:PutItem</code></td>
+<td><code>table/noticias</code></td>
+<td>Guardar la noticia; no puede leer, borrar ni recorrer la tabla</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>En <strong>IAM &gt; Roles &gt; Crear rol</strong> se eligió <strong>Servicio de AWS</strong> y <strong>Lambda</strong> como entidad de confianza.</li>
+</ol>
+<p><img alt="Entidad de confianza Lambda" src="img/iam/27-rol-confianza-lambda.png" /></p>
+<ol>
+<li>No se agregó ninguna política administrada. Se le puso el nombre <code>procesar-imagen-noticia-rol</code> y las etiquetas <code>proyecto=NoticiasAWS</code>, <code>equipo=3</code> y <code>entorno=Laboratorio</code>. La consola no acepta el carácter <code>&gt;</code> en la descripción.</li>
+</ol>
+<p><img alt="Nombre y etiquetas del rol" src="img/iam/28-rol-nombre-etiquetas.png" /></p>
+<ol>
+<li>En el rol se usó <strong>Agregar permisos &gt; Crear política insertada &gt; JSON</strong> para pegar la política. El validador de IAM indica 0 problemas de seguridad, 0 errores y 0 advertencias.</li>
+</ol>
+<p><img alt="Política mínima en JSON" src="img/iam/29-politica-minima-json.png" />
+<img alt="Revisión de la política" src="img/iam/30-politica-revision.png" /></p>
+<ol>
+<li>La política quedó guardada como <code>ProcesadoraMinimoPrivilegio</code>, y es la única del rol.</li>
+</ol>
+<p><img alt="Rol creado" src="img/iam/31-rol-creado.png" /></p>
+<ol>
+<li>En la procesadora, en <strong>Configuración general &gt; Editar &gt; Rol de ejecución</strong>, se eligió <code>procesar-imagen-noticia-rol</code>.</li>
+</ol>
+<p><img alt="Asignación del rol" src="img/iam/32-asignar-rol-procesadora.png" />
+<img alt="Permisos de la procesadora con el rol mínimo" src="img/iam/33-procesadora-con-rol-minimo.png" /></p>
+<ol>
+<li><strong>Verificación con el rol mínimo:</strong> se volvieron a ejecutar P07 y P03 con «Probar».</li>
+<li>P07 dio <code>inicio</code> → <code>validado</code> → <code>duplicado</code>: la función lee el pendiente y la escritura condicional responde.</li>
+<li>P03 dio <code>validacion_fallida</code> por <code>NoSuchKey</code>.</li>
+</ol>
+<p><img alt="P07 con el rol mínimo" src="img/iam/34-prueba-rol-minimo-p07.png" />
+<img alt="P03 con el rol mínimo" src="img/iam/35-prueba-rol-minimo-p03.png" /></p>
+<p><code>PowerUserRole</code> no se modificó, porque lo siguen usando <code>cors</code>, <code>agregarNoticia</code> y <code>obtenerNoticias</code>. Para un entorno real, conviene darle a cada una su propio rol mínimo.</p>
+<h3>C5. Etiquetas de costos</h3>
+<p>Como pide el documento del proyecto, se etiquetaron con <code>proyecto=NoticiasAWS</code>, <code>equipo=3</code> y <code>entorno=Laboratorio</code> los tres recursos que creó el Equipo 3:
+- la procesadora;
+- su rol;
+- la alarma.</p>
+<p>Los recursos compartidos (bucket, tabla y Lambdas originales) no se tocaron.</p>
+<p><img alt="Etiquetas de la procesadora" src="img/costos/36-etiquetas-procesadora.png" />
+<img alt="Etiquetas de la alarma" src="img/costos/37-etiquetas-alarma.png" /></p>
+<hr />
+<h2>Fase D · Pruebas P01–P08</h2>
+<h3>P01 · Imagen válida</h3>
+<p>Se publicó «P01 E3: publicación por evento S3» con imagen desde el sitio. En el tráfico de red solo aparecen el POST a prefirmadas, el PUT a S3 y GET <code>?id=</code>; <strong>no hay ninguna llamada a <code>agregarNoticia</code></strong>. El <code>noticiaId</code> fue <code>d81845b4-6767-4ddd-be9f-b36492435723</code>.</p>
+<p><img alt="P01 publicada" src="img/lambda/15-p01-publicada-sitio.png" /></p>
+<p><em>Para la captura en alta resolución, P01 se repitió el 28 de octubre con «P01 E3 (repetición)», id <code>c544c655-5ee9-4cfc-80e5-130237631061</code>. Tampoco hubo ninguna llamada a <code>agregarNoticia</code>.</em></p>
+<p>Los logs de la procesadora muestran <code>inicio</code> → <code>validado</code> → <code>guardado</code>, con una duración de 1 561 ms.</p>
+<p><img alt="P01 logs" src="img/cloudwatch/16-p01-logs.png" /></p>
+<h3>P02 · Persistencia</h3>
+<p>El elemento está en DynamoDB con <code>origen = s3-evento</code> y la URL de la imagen sin firma. Al recargar el sitio, la noticia se abre con su imagen.</p>
+<p><img alt="P02 elemento DynamoDB" src="img/dynamodb/17-p02-item.png" />
+<img alt="P02 sitio recargado" src="img/lambda/18-p02-sitio.png" /></p>
+<h3>P03 · JSON ausente</h3>
+<p>Se probó la procesadora en <strong>Probar</strong> con <code>pruebas/evento-s3-sin-pendiente.json</code>. El log registra <code>validacion_fallida</code> con «Pendiente ausente o inválido (NoSuchKey)». La función termina sin error, porque es un fallo terminal que no se reintenta, y no se crea ningún registro.</p>
+<p><img alt="P03 validación" src="img/errores/19-p03-validacion.png" /></p>
+<h3>P04 · Fallo de DynamoDB simulado</h3>
+<ol>
+<li>Se cambió <code>TABLA</code> a <code>noticias-falla-lab</code>, una tabla que no existe. La tabla real no se tocó.</li>
+</ol>
+<p><img alt="P04 configuración" src="img/errores/20a-p04-tabla-falla.png" /></p>
+<ol>
+<li>Se publicó «P04 E3: fallo controlado de DynamoDB (evento S3)», con id <code>a082e96b-a1b7-40da-bade-06677ac730ca</code>.</li>
+<li>El log muestra <strong>3 intentos con el mismo requestId</strong> (23:45:50, 23:46:54 y 23:48:48 UTC), es decir, el intento inicial más 2 reintentos. Los tres fallan con <code>ResourceNotFoundException</code>.</li>
+</ol>
+<p><img alt="P04 reintentos" src="img/errores/20-p04-reintentos.png" /></p>
+<ol>
+<li><strong>Recuperación:</strong> se restableció <code>TABLA = noticias</code> y se reprocesó el evento con <code>pruebas/evento-s3-recuperacion-p04.json</code>. El log registra <code>guardado</code> con el mismo id.</li>
+</ol>
+<p><img alt="P04 recuperación" src="img/errores/20b-p04-recuperacion.png" /></p>
+<h3>P05 · Métrica Errors</h3>
+<p>En la pestaña <strong>Monitorear</strong> de la procesadora, la métrica nativa <code>Errors</code> alcanza 1, con una tasa de éxito mínima del 0 %. En «Eventos asincrónicos» se ven 3 eventos recibidos y 1 eliminado tras agotar los reintentos.</p>
+<p><img alt="P05 métricas" src="img/cloudwatch/21-p05-metrica-errors.png" /></p>
+<h3>P06 · Alarma</h3>
+<p>La alarma pasó a <strong>En modo alarma</strong> a las 23:46:42 UTC.</p>
+<p><img alt="P06 en alarma" src="img/cloudwatch/22-p06-alarma.png" /></p>
+<p>Tras la recuperación volvió a <strong>CORRECTO</strong> a las 23:51:42 UTC.</p>
+<p><img alt="P06 recuperación" src="img/cloudwatch/23-p06-recuperacion.png" /></p>
+<p>En la pestaña <strong>Historial</strong> de la alarma quedan registradas las transiciones de estado.</p>
+<p><img alt="P06 historial" src="img/cloudwatch/22b-p06-historial.png" /></p>
+<h3>P07 · Evento duplicado</h3>
+<p>Se volvió a enviar el evento de la imagen de P01 (<code>pruebas/evento-s3-duplicado.json</code>). El log registra <code>duplicado</code> con el mismo <code>noticiaId</code>, y DynamoDB conserva un solo registro.</p>
+<p><img alt="P07 duplicado" src="img/errores/24-p07-duplicado.png" /></p>
+<h3>P08 · Procesamiento lento</h3>
+<p>Durante el fallo de P04, la web consultó el estado 10 veces por id y mostró «La imagen se subió y la noticia sigue en procesamiento», sin reenviar la noticia.</p>
+<p><img alt="P08 pendiente" src="img/lambda/25-p08-pendiente.png" /></p>
+<p><em>Para la captura en alta resolución, P08 se repitió el 28 de octubre con «P08 E3 (repetición)», id <code>7c32f756-55cc-4555-a93a-dbc4afe843c5</code>, de nuevo con <code>TABLA = noticias-falla-lab</code>. Al restaurar <code>TABLA = noticias</code>, uno de los reintentos automáticos guardó la noticia a las 21:34 UTC sin reprocesarla a mano.</em></p>
+<p>Tras la recuperación, la noticia aparece una sola vez.</p>
+<p><img alt="P08 recuperada" src="img/lambda/25b-p08-recuperada.png" /></p>
+<hr />
+<h2>Fase E · Cierre y costos</h2>
+<p>Saldo final: 120,00 USD en créditos y 0,00 USD de gasto en el mes. Lambda, S3, DynamoDB bajo demanda y CloudWatch quedaron dentro del nivel gratuito.</p>
+<p><img alt="Saldo final" src="img/costos/26-saldo-final.png" /></p>
+<p><strong>Recursos creados:</strong></p>
+<ul>
+<li>Función <code>procesar-imagen-noticia</code></li>
+<li>Rol <code>procesar-imagen-noticia-rol</code> con la política insertada <code>ProcesadoraMinimoPrivilegio</code></li>
+<li>Disparador S3</li>
+<li>Alarma <code>gaceta-procesadora-errores</code></li>
+<li>Grupo de logs con retención de 3 días</li>
+</ul>
+<p><strong>Registros de prueba en la tabla <code>noticias</code>:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Título</th>
+<th>Origen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fc25af5a-82be-4ec4-bc0b-8c874bb986e8</td>
+<td>Prueba inicial E3 (flujo actual)</td>
+<td>HTTP</td>
+</tr>
+<tr>
+<td>d81845b4-6767-4ddd-be9f-b36492435723</td>
+<td>P01 E3</td>
+<td>evento S3</td>
+</tr>
+<tr>
+<td>a082e96b-a1b7-40da-bade-06677ac730ca</td>
+<td>P04 E3 (evento S3)</td>
+<td>evento S3</td>
+</tr>
+<tr>
+<td>8059b64e-5245-4fcd-a86c-1b6285bffec2</td>
+<td>P04 E3</td>
+<td>HTTP; se publicó desde la página en caché</td>
+</tr>
+<tr>
+<td>c544c655-5ee9-4cfc-80e5-130237631061</td>
+<td>P01 E3 (repetición, 28 oct.)</td>
+<td>evento S3</td>
+</tr>
+<tr>
+<td>7c32f756-55cc-4555-a93a-dbc4afe843c5</td>
+<td>P08 E3 (repetición, 28 oct.)</td>
+<td>evento S3, guardada por reintento</td>
+</tr>
+</tbody>
+</table>
+<p>No se borró nada de la tabla compartida. Si el equipo decide retirar los registros de prueba, puede hacerlo desde <strong>Explorar elementos</strong>.</p>
+<p><strong>Limpieza al terminar el curso</strong>, en este orden:</p>
+<ol>
+<li>Quitar el disparador S3 de la procesadora.</li>
+<li>Eliminar la función <code>procesar-imagen-noticia</code>.</li>
+<li>Eliminar el rol <code>procesar-imagen-noticia-rol</code>.</li>
+<li>Eliminar la alarma <code>gaceta-procesadora-errores</code>.</li>
+<li>Eliminar el grupo de logs <code>/aws/lambda/procesar-imagen-noticia</code>.</li>
+<li>Eliminar los objetos <code>pendientes/</code> y las imágenes de prueba del bucket.</li>
+<li>Eliminar las noticias de prueba de la tabla.</li>
+</ol>
+<p>Si el sitio sigue en uso, antes hay que restaurar <code>lambdas/prefirmadas-original.mjs</code> en <code>cors</code>.</p>
+<p><strong>Pendientes opcionales:</strong></p>
+<ul>
+<li>DLQ o destino SQS para fallos.</li>
+<li>Notificación SNS de la alarma.</li>
+<li>Regla de ciclo de vida que caduque <code>pendientes/</code> a los 7 días.</li>
+<li>Retirar el modo <code>?file=</code> y la Lambda <code>agregarNoticia</code> para imágenes cuando ya no queden páginas antiguas en caché.</li>
+</ul></body></html>

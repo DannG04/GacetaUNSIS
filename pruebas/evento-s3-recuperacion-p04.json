@@ -1,0 +1,11 @@
+{
+  "Records": [{
+    "eventSource": "aws:s3",
+    "awsRegion": "us-east-2",
+    "eventName": "ObjectCreated:Put",
+    "s3": {
+      "bucket": { "name": "mis-noticias-daniel-imagenes-906-2026" },
+      "object": { "key": "imagenes/a082e96b-a1b7-40da-bade-06677ac730ca/foto.webp", "size": 48128 }
+    }
+  }]
+}

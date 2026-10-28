@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CrearGrupoDeLogs",
+      "Effect": "Allow",
+      "Action": "logs:CreateLogGroup",
+      "Resource": "arn:aws:logs:us-east-2:216728240051:*"
+    },
+    {
+      "Sid": "EscribirLogsDeLaProcesadora",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:us-east-2:216728240051:log-group:/aws/lambda/procesar-imagen-noticia:*"
+    },
+    {
+      "Sid": "LeerPendientes",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::mis-noticias-daniel-imagenes-906-2026/pendientes/*"
+    },
+    {
+      "Sid": "DistinguirPendienteAusente",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::mis-noticias-daniel-imagenes-906-2026",
+      "Condition": { "StringLike": { "s3:prefix": "pendientes/*" } }
+    },
+    {
+      "Sid": "GuardarNoticia",
+      "Effect": "Allow",
+      "Action": "dynamodb:PutItem",
+      "Resource": "arn:aws:dynamodb:us-east-2:216728240051:table/noticias"
+    }
+  ]
+}

@@ -3,6 +3,8 @@
 Proyecto: Gaceta Universitaria «El Unsito», UNSIS.
 Fecha de diagnóstico: 26 de octubre de 2026.
 
+> **Actualización 2026-10-27:** la integración S3 → Lambda → DynamoDB, los logs, la alarma y las pruebas P01–P08 se implementaron y aprobaron en AWS. Ver [documentacion/MANUAL-IMPLEMENTACION.md](documentacion/MANUAL-IMPLEMENTACION.md) (PDF con capturas en `documentacion/MANUAL-IMPLEMENTACION.pdf`) y [documentacion/MATRIZ-PRUEBAS.md](documentacion/MATRIZ-PRUEBAS.md). Pendientes opcionales: DLQ en SQS, notificación SNS, caducidad de `pendientes/` y rol de mínimo privilegio para la procesadora.
+
 Este diagnóstico se basa en el código local y en las pruebas reportadas durante el desarrollo. No certifica la configuración desplegada en AWS. No se asigna un porcentaje de avance sin evidencias de consola.
 
 ## 1. Recursos identificados

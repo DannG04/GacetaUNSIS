@@ -855,14 +855,14 @@ async function cargarNoticias() {
   }
 }
 
-async function subirImagen(archivo) {
-  // La Lambda lee event.queryStringParameters.file y devuelve uploadUrl.
-  const endpoint = new URL(API_NOTICIAS.prefirmar);
-  endpoint.searchParams.set('file', archivo.name);
-  const datos = await solicitarJSON(endpoint.href, { method: 'POST' });
-  const uploadUrl = urlSegura(datos.uploadUrl || datos.presignedUrl);
-  const imagen = urlSegura(datos.imageUrl || datos.publicUrl);
-  if (!uploadUrl) throw new Error('La Lambda de prefirmadas debe devolver uploadUrl o presignedUrl.');
+// Flujo asíncrono: la Lambda de prefirmadas guarda pendientes/ID.json y la procesadora S3 escribe en DynamoDB.
+async function subirImagenConNoticia(archivo, noticia) {
+  const datos = await solicitarJSON(API_NOTICIAS.prefirmar, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...noticia, tipo: archivo.type })
+  });
+  const uploadUrl = urlSegura(datos.uploadUrl);
+  if (!uploadUrl || datos.noticiaId !== noticia.id) throw new Error('La Lambda de prefirmadas debe devolver uploadUrl y el mismo noticiaId.');
   let respuesta;
   try {
     respuesta = await fetch(uploadUrl, {
@@ -874,10 +874,20 @@ async function subirImagen(archivo) {
     throw new Error('No se pudo completar la subida de la imagen a S3. Revisa CORS del bucket de imágenes y la vigencia de la URL prefirmada.');
   }
   if (!respuesta.ok) throw new Error(`No se pudo subir la imagen a S3 (HTTP ${respuesta.status}).`);
-  const objeto = new URL(uploadUrl);
-  objeto.search = '';
-  objeto.hash = '';
-  return imagen || objeto.href;
+}
+
+// Consulta por id durante un tiempo limitado; una subida exitosa no implica que la noticia ya esté guardada.
+async function esperarProcesamiento(id, intentos = 10, esperaMs = 2000) {
+  const url = new URL(API_NOTICIAS.obtener);
+  url.searchParams.set('id', id);
+  for (let i = 0; i < intentos; i++) {
+    await new Promise(r => setTimeout(r, esperaMs));
+    try {
+      const datos = await solicitarJSON(url.href, { cache: 'no-store' });
+      if (datos.estado === 'publicada') return true;
+    } catch (error) { console.warn('Consulta de estado fallida', error); }
+  }
+  return false;
 }
 
 // Identificador de noticia compatible con sitios S3 servidos por HTTP.
@@ -904,9 +914,9 @@ function prepararPublicacion() {
   const fechaHoy = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   campos.fecha.value = fechaHoy;
   let enviando = false;
-  let imagenSubida = '';
+  let imagenSubida = false;
   let idPendiente = null;
-  campos.archivo.addEventListener('change', () => { imagenSubida = ''; });
+  campos.archivo.addEventListener('change', () => { imagenSubida = false; idPendiente = null; });
   formulario.addEventListener('submit', async evento => {
     evento.preventDefault();
     if (enviando || !formulario.reportValidity()) return;
@@ -925,27 +935,39 @@ function prepararPublicacion() {
     document.getElementById('campos-noticia').disabled = true;
     let guardada = false;
     try {
-      if (archivo && !imagenSubida) {
-        estado.textContent = 'Subiendo imagen…';
-        imagenSubida = await subirImagen(archivo);
-      }
       if (!idPendiente) idPendiente = crearIdNoticia();
-      estado.textContent = 'Guardando noticia…';
-      await solicitarJSON(API_NOTICIAS.agregar, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: idPendiente, titulo: campos.titulo.value.trim(), detalle: campos.detalle.value.trim(),
-          fecha: campos.fecha.value, categoria: campos.categoria.value.trim(),
-          imagen: archivo ? imagenSubida : '', alt: campos.alt.value.trim()
-        })
-      });
+      const noticia = {
+        id: idPendiente, titulo: campos.titulo.value.trim(), detalle: campos.detalle.value.trim(),
+        fecha: campos.fecha.value, categoria: campos.categoria.value.trim(), alt: campos.alt.value.trim()
+      };
+      const mensaje = 'Noticia publicada correctamente.';
+      if (archivo) {
+        if (!imagenSubida) {
+          estado.textContent = 'Subiendo imagen…';
+          await subirImagenConNoticia(archivo, noticia);
+          imagenSubida = true;
+        }
+        estado.textContent = 'Imagen recibida. Procesando la noticia…';
+        if (!await esperarProcesamiento(idPendiente)) {
+          // No se reenvía: un reintento crearía otra subida. La procesadora puede terminar más tarde.
+          estado.textContent = 'La imagen se subió y la noticia sigue en procesamiento. Pulsa Actualizar noticias en unos momentos.';
+          formulario.reset(); campos.fecha.value = fechaHoy; imagenSubida = false; idPendiente = null;
+          return;
+        }
+      } else {
+        estado.textContent = 'Guardando noticia…';
+        await solicitarJSON(API_NOTICIAS.agregar, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...noticia, imagen: '' })
+        });
+      }
       guardada = true;
       formulario.reset();
       campos.fecha.value = fechaHoy;
-      imagenSubida = '';
+      imagenSubida = false;
       idPendiente = null;
       const actualizada = await cargarNoticias();
-      estado.textContent = actualizada ? 'Noticia publicada correctamente.' : 'Noticia guardada. No se pudo actualizar la lista; pulsa Actualizar noticias.';
+      estado.textContent = actualizada ? mensaje : 'Noticia guardada. No se pudo actualizar la lista; pulsa Actualizar noticias.';
     } catch (error) {
       estado.textContent = guardada ? 'Noticia guardada. Actualiza la lista.' : `No se confirmó la publicación. ${error.message} Tus datos se conservaron.`;
     } finally {
