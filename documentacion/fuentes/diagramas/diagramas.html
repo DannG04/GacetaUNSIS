@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diagramas Equipo 3</title>
+<style>
+  body { margin: 0; background: #fff; font-family: "Liberation Sans", Arial, sans-serif; }
+  .diagrama { display: inline-block; background: #fff; padding: 0; margin: 0 0 40px; }
+  svg text { font-family: "Liberation Sans", Arial, sans-serif; }
+</style>
+</head>
+<body>
+<div class="diagrama" id="arquitectura"></div><br>
+<div class="diagrama" id="secuencia"></div><br>
+<div class="diagrama" id="errores"></div>
+
+<script>
+// Paleta: colores de categoría de AWS para los servicios y azul/dorado del documento.
+const COL = {
+  web: "#475569", lambda: "#ED7100", s3: "#7AA116", db: "#C925D1", cw: "#E7157B", iam: "#DD344C",
+  navy: "#0A2238", azul: "#0D4A80", dorado: "#C9962F", texto: "#1F2937", gris: "#6B7280",
+  linea: "#334155", rojo: "#C62828", verde: "#2E7D4F", fondo: "#F6F7F9", borde: "#D6DAE1",
+};
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+// Pictogramas blancos sobre mosaico de color, centrados en (0,0) para un mosaico de 56 px.
+const GLIFO = {
+  web: `<rect x="-17" y="-13" width="34" height="26" rx="3" fill="none" stroke="#fff" stroke-width="2.6"/>
+        <line x1="-17" y1="-5" x2="17" y2="-5" stroke="#fff" stroke-width="2.6"/>
+        <circle cx="-12" cy="-9" r="1.6" fill="#fff"/><circle cx="-7" cy="-9" r="1.6" fill="#fff"/>`,
+  lambda: `<text x="0" y="11" text-anchor="middle" font-size="32" font-weight="700" fill="#fff" font-family="DejaVu Serif, serif">λ</text>`,
+  s3: `<path d="M-15,-10 L15,-10 L11,14 Q0,18 -11,14 Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/>
+       <ellipse cx="0" cy="-10" rx="15" ry="4.5" fill="none" stroke="#fff" stroke-width="2.6"/>`,
+  db: `<ellipse cx="0" cy="-11" rx="14" ry="5" fill="none" stroke="#fff" stroke-width="2.6"/>
+       <path d="M-14,-11 V11 A14,5 0 0 0 14,11 V-11" fill="none" stroke="#fff" stroke-width="2.6"/>
+       <path d="M-14,0 A14,5 0 0 0 14,0" fill="none" stroke="#fff" stroke-width="2.6"/>`,
+  cw: `<circle cx="-3" cy="-3" r="12" fill="none" stroke="#fff" stroke-width="2.6"/>
+       <polyline points="-11,-2 -6,-2 -3,-8 1,4 4,-2 6,-2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+       <line x1="6" y1="6" x2="14" y2="14" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/>`,
+};
+
+function svg(id, w, h, contenido) {
+  document.getElementById(id).innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <defs>
+        ${["linea", "rojo", "gris", "azul", "verde"].map(c => `
+        <marker id="flecha-${c}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="${COL[c]}"/></marker>`).join("")}
+      </defs>${contenido}</svg>`;
+}
+// Servicio: mosaico con pictograma y nombre debajo. (x, y) es el centro del mosaico.
+function servicio(x, y, tipo, nombre, sub = "", t = 56) {
+  return `<g transform="translate(${x},${y})">
+    <rect x="${-t / 2}" y="${-t / 2}" width="${t}" height="${t}" rx="9" fill="${COL[tipo]}"/>
+    <g transform="scale(${t / 56})">${GLIFO[tipo]}</g>
+    <text y="${t / 2 + 19}" text-anchor="middle" font-size="14.5" font-weight="700" fill="${COL.texto}">${esc(nombre)}</text>
+    ${sub ? `<text y="${t / 2 + 36}" text-anchor="middle" font-size="12" fill="${COL.gris}">${esc(sub)}</text>` : ""}
+  </g>`;
+}
+function flecha(puntos, { color = "linea", ancho = 2, guion = false } = {}) {
+  const d = puntos.map((p, i) => (i ? "L" : "M") + p[0] + "," + p[1]).join(" ");
+  return `<path d="${d}" fill="none" stroke="${COL[color]}" stroke-width="${ancho}" ${guion ? 'stroke-dasharray="6 5"' : ""} marker-end="url(#flecha-${color})"/>`;
+}
+function etiqueta(x, y, texto, { color = "texto", ancla = "middle", tam = 12.5, peso = 400, fondo = true } = {}) {
+  const w = texto.length * tam * 0.53 + 10;
+  const x0 = ancla === "middle" ? x - w / 2 : ancla === "end" ? x - w : x;
+  return `${fondo ? `<rect x="${x0}" y="${y - tam + 1}" width="${w}" height="${tam + 6}" rx="3" fill="#fff"/>` : ""}
+    <text x="${ancla === "middle" ? x : ancla === "end" ? x - 5 : x + 5}" y="${y + 2}" text-anchor="${ancla}" font-size="${tam}" font-weight="${peso}" fill="${COL[color]}">${esc(texto)}</text>`;
+}
+function numero(x, y, n, color = "azul") {
+  return `<circle cx="${x}" cy="${y}" r="11" fill="${COL[color]}"/>
+    <text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">${n}</text>`;
+}
+function panel(x, y, w, h, titulo, color, relleno) {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${relleno}" stroke="${color}" stroke-width="1.6"/>
+    <text x="${x + 20}" y="${y + 30}" font-size="16" font-weight="700" fill="${color}">${esc(titulo)}</text>`;
+}
+
+// ---------------- 1. Arquitectura: antes y ahora ----------------
+(function () {
+  const X = [110, 340, 570, 800, 1010];
+  let s = "";
+  // Antes
+  s += panel(20, 20, 1080, 275, "Antes: el navegador coordina la publicación", COL.gris, COL.fondo);
+  const a = { nav: [X[0], 150], s3: [X[2], 95], ag: [X[2], 205], db: [X[4], 205] };
+  s += servicio(...a.nav, "web", "Navegador", "sitio de la gaceta");
+  s += servicio(...a.s3, "s3", "S3", "imágenes");
+  s += servicio(...a.ag, "lambda", "agregarNoticia", "");
+  s += servicio(...a.db, "db", "DynamoDB", "tabla noticias");
+  s += flecha([[a.nav[0] + 34, a.nav[1] - 12], [a.s3[0] - 34, a.s3[1]]]);
+  s += flecha([[a.nav[0] + 34, a.nav[1] + 12], [a.ag[0] - 34, a.ag[1]]]);
+  s += flecha([[a.ag[0] + 34, a.ag[1]], [a.db[0] - 34, a.db[1]]]);
+  s += numero(318, 106, 1, "linea") + etiqueta(332, 110, "sube la imagen", { ancla: "start" });
+  s += numero(318, 196, 2, "linea") + etiqueta(332, 200, "luego guarda la noticia", { ancla: "start" });
+  s += `<rect x="700" y="68" width="370" height="58" rx="8" fill="#FDECEC" stroke="${COL.rojo}" stroke-width="1.2"/>
+        <text x="716" y="92" font-size="13.5" font-weight="700" fill="${COL.rojo}">Si el paso 2 falla:</text>
+        <text x="716" y="112" font-size="13" fill="${COL.rojo}">la imagen queda sin noticia y no hay registro del error.</text>`;
+
+  // Ahora
+  const y0 = 320;
+  s += panel(20, y0, 1080, 400, "Ahora: S3 dispara el procesamiento", COL.azul, "#fff");
+  const r = [y0 + 95, y0 + 215, y0 + 330];
+  const n = {
+    nav: [X[0], r[1]], cors: [X[1], r[0]], obt: [X[1], r[2]], s3: [X[2], r[1]],
+    proc: [X[3], r[1]], cw: [X[3], r[0] - 10], db: [X[4], r[1]],
+  };
+  s += servicio(...n.nav, "web", "Navegador", "sitio de la gaceta");
+  s += servicio(...n.cors, "lambda", "cors", "prefirma la subida");
+  s += servicio(...n.obt, "lambda", "obtenerNoticias", "consulta por id");
+  s += servicio(...n.s3, "s3", "S3", "pendientes/ · imagenes/");
+  s += servicio(...n.proc, "lambda", "procesar-imagen-noticia", "nueva", 64);
+  s += servicio(...n.cw, "cw", "CloudWatch", "logs · Errors · alarma", 48);
+  s += servicio(...n.db, "db", "DynamoDB", "tabla noticias");
+  s += flecha([[n.nav[0] + 32, n.nav[1] - 22], [n.cors[0] - 34, n.cors[1] + 8]]);
+  s += flecha([[n.cors[0] + 34, n.cors[1] + 8], [n.s3[0] - 32, n.s3[1] - 22]]);
+  s += flecha([[n.nav[0] + 34, n.nav[1]], [n.s3[0] - 34, n.s3[1]]]);
+  s += flecha([[n.s3[0] + 34, n.s3[1]], [n.proc[0] - 38, n.proc[1]]], { color: "rojo", ancho: 3 });
+  s += flecha([[n.proc[0] + 38, n.proc[1]], [n.db[0] - 34, n.db[1]]]);
+  s += flecha([[n.proc[0], n.proc[1] - 38], [n.cw[0], n.cw[1] + 68]], { color: "gris", guion: true });
+  s += flecha([[n.nav[0] + 32, n.nav[1] + 22], [n.obt[0] - 34, n.obt[1] - 8]], { color: "gris" });
+  s += flecha([[n.obt[0] + 34, n.obt[1]], [n.db[0], n.obt[1]], [n.db[0], n.db[1] + 72]], { color: "gris" });
+  s += numero(178, r[0] + 32, 1) + etiqueta(192, r[0] + 36, "envía los datos", { ancla: "start" });
+  s += numero(432, r[0] + 32, 2) + etiqueta(446, r[0] + 36, "guarda el pendiente", { ancla: "start" });
+  s += numero(250, r[1] - 12, 3) + etiqueta(250, r[1] + 22, "sube la imagen (URL prefirmada)", { tam: 12 });
+  s += numero(685, r[1] - 18, 4, "rojo") + etiqueta(685, r[1] + 24, "evento ObjectCreated", { color: "rojo", peso: 700, tam: 12 });
+  s += numero(905, r[1] - 18, 5) + etiqueta(905, r[1] + 24, "guarda la noticia", { tam: 12 });
+  s += numero(52, r[2] + 6, 6, "gris") + etiqueta(66, r[2] + 10, "¿ya se publicó? (cada 2 s)", { ancla: "start", color: "gris" });
+  s += etiqueta(680, r[2] + 4, "GetItem por id", { color: "gris" });
+  svg("arquitectura", 1120, 740, s);
+})();
+
+// ---------------- 2. Secuencia de una publicación ----------------
+(function () {
+  const P = [
+    ["web", "Navegador"], ["lambda", "cors"], ["s3", "S3"], ["lambda", "procesadora"],
+    ["db", "DynamoDB"], ["cw", "CloudWatch"], ["lambda", "obtenerNoticias"],
+  ];
+  const x0 = 80, dx = 160, top = 30, H = 690;
+  const X = P.map((_, i) => x0 + i * dx);
+  let s = "";
+  // Marco del tramo asíncrono y del sondeo
+  s += `<rect x="${X[2] - 40}" y="300" width="${X[5] - X[2] + 80}" height="210" rx="8" fill="#FFF7EF" stroke="${COL.lambda}" stroke-dasharray="5 4"/>
+        <text x="${X[2] - 30}" y="318" font-size="12" font-weight="700" fill="${COL.lambda}">ASÍNCRONO · reintenta 2 veces si falla</text>`;
+  s += `<rect x="${X[0] - 50}" y="530" width="${X[6] - X[0] + 100}" height="120" rx="8" fill="#F3F6FA" stroke="${COL.azul}" stroke-dasharray="5 4"/>
+        <text x="${X[0] - 40}" y="548" font-size="12" font-weight="700" fill="${COL.azul}">REPETIR cada 2 s, máx. 10 veces</text>`;
+  P.forEach(([t, n], i) => {
+    s += `<line x1="${X[i]}" y1="${top + 80}" x2="${X[i]}" y2="${H - 10}" stroke="${COL.borde}" stroke-width="2" stroke-dasharray="4 4"/>`;
+    s += servicio(X[i], top + 22, t, n, "", 44);
+  });
+  const msg = (y, a, b, n, texto, opt = {}) => {
+    const dir = b > a ? 1 : -1;
+    let r = flecha([[X[a] + dir * 6, y], [X[b] - dir * 8, y]], opt);
+    r += numero(Math.min(X[a], X[b]) + 16, y - 15, n, opt.color === "rojo" ? "rojo" : "azul");
+    r += etiqueta(Math.min(X[a], X[b]) + 32, y - 11, texto, { ancla: "start", tam: 12.5, fondo: true, color: opt.color || "texto", peso: opt.color === "rojo" ? 700 : 400 });
+    return r;
+  };
+  s += msg(150, 0, 1, 1, "POST datos de la noticia");
+  s += msg(195, 1, 2, 2, "guarda pendientes/ID.json");
+  s += msg(240, 1, 0, 3, "uploadUrl + noticiaId", { color: "gris", guion: true });
+  s += msg(285, 0, 2, 4, "PUT imagenes/ID/foto.jpg");
+  s += msg(350, 2, 3, 5, "evento ObjectCreated", { color: "rojo", ancho: 2.6 });
+  s += msg(395, 3, 2, 6, "lee pendiente");
+  s += msg(440, 3, 4, 7, "PutItem si el id no existe");
+  s += msg(485, 3, 5, 8, "log: inicio → validado → guardado", { color: "gris", guion: true });
+  s += msg(585, 0, 6, 9, "GET ?id=ID");
+  s += msg(630, 6, 0, 10, "pendiente | publicada", { color: "gris", guion: true });
+  svg("secuencia", X[6] + 90, H, s);
+})();
+
+// ---------------- 3. Manejo de errores en la procesadora ----------------
+(function () {
+  let s = "";
+  const caja = (cx, cy, w, h, lineas, { fondo = "#fff", borde = COL.linea, color = COL.texto, radio = 8 } = {}) => {
+    let r = `<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${radio}" fill="${fondo}" stroke="${borde}" stroke-width="1.6"/>`;
+    const y1 = cy - (lineas.length - 1) * 9.5 + 5;
+    lineas.forEach((l, i) => {
+      const [t, b] = Array.isArray(l) ? l : [l, i === 0];
+      r += `<text x="${cx}" y="${y1 + i * 19}" text-anchor="middle" font-size="${b ? 14 : 12.5}" font-weight="${b ? 700 : 400}" fill="${color}">${esc(t)}</text>`;
+    });
+    return r;
+  };
+  const rombo = (cx, cy, w, h, l1, l2) =>
+    `<path d="M${cx},${cy - h / 2} L${cx + w / 2},${cy} L${cx},${cy + h / 2} L${cx - w / 2},${cy} Z" fill="#FFF8E7" stroke="${COL.dorado}" stroke-width="1.8"/>
+     <text x="${cx}" y="${cy - 3}" text-anchor="middle" font-size="13" font-weight="700" fill="${COL.texto}">${esc(l1)}</text>
+     <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="13" font-weight="700" fill="${COL.texto}">${esc(l2)}</text>`;
+  const C = 400, D = 760, I = 110;
+  s += caja(C, 40, 270, 46, ["Llega un evento de S3", ["imagenes/…/foto.jpg", false]], { fondo: COL.azul, borde: COL.azul, color: "#fff", radio: 23 });
+  s += flecha([[C, 63], [C, 98]]);
+  s += rombo(C, 145, 250, 92, "¿La clave tiene", "el formato esperado?");
+  s += flecha([[C + 125, 145], [D - 130, 145]], { color: "gris" }) + etiqueta(C + 170, 137, "No", { color: "gris", peso: 700 });
+  s += caja(D, 145, 260, 56, ["omitido_sin_formato", ["se ignora sin error", false]], { fondo: COL.fondo, borde: COL.borde, color: COL.gris });
+  s += flecha([[C, 191], [C, 228]]) + etiqueta(C + 22, 212, "Sí", { peso: 700, fondo: false });
+  s += caja(C, 255, 250, 50, ["Lee pendientes/ID.json"]);
+  s += flecha([[C, 280], [C, 318]]);
+  s += rombo(C, 365, 250, 92, "¿Existe y tiene", "datos válidos?");
+  s += flecha([[C + 125, 365], [D - 130, 365]], { color: "rojo" }) + etiqueta(C + 170, 357, "No", { color: "rojo", peso: 700 });
+  s += caja(D, 365, 260, 76, ["validacion_fallida", ["error terminal: no se reintenta", false], ["no se crea noticia (P03)", false]], { fondo: "#FDECEC", borde: COL.rojo, color: COL.rojo });
+  s += flecha([[C, 411], [C, 448]]) + etiqueta(C + 22, 432, "Sí", { peso: 700, fondo: false });
+  s += caja(C, 478, 290, 56, ["PutItem condicional", ["solo si el id no existe", false]]);
+  // Tres salidas
+  s += flecha([[C, 506], [C, 568]], { color: "verde" }) + etiqueta(C + 30, 540, "ok", { color: "verde", peso: 700, fondo: false });
+  s += caja(C, 600, 250, 60, ["guardado", ["noticia publicada (P01, P02)", false]], { fondo: "#E8F5EC", borde: COL.verde, color: COL.verde });
+  s += flecha([[C - 145, 478], [I + 10, 478], [I + 10, 568]], { color: "gris" }) + etiqueta(C - 200, 470, "el id ya existe", { color: "gris", peso: 700 });
+  s += caja(I + 10, 600, 200, 60, ["duplicado", ["un solo registro (P07)", false]], { fondo: COL.fondo, borde: COL.borde, color: COL.gris });
+  s += flecha([[C + 145, 478], [D, 478], [D, 520]], { color: "rojo" }) + etiqueta(C + 215, 470, "error de DynamoDB", { color: "rojo", peso: 700 });
+  s += caja(D, 552, 280, 62, ["fallo: se relanza el error", ["la función termina con error", false]], { fondo: "#FDECEC", borde: COL.rojo, color: COL.rojo });
+  s += flecha([[D, 583], [D, 618]], { color: "rojo" });
+  s += caja(D, 652, 280, 66, ["Errors +1 → alarma", ["Lambda reintenta 2 veces", false], ["(P04, P05, P06)", false]], { fondo: "#fff", borde: COL.rojo, color: COL.texto });
+  s += flecha([[D - 140, 652], [C + 128, 618]], { color: "verde", guion: true });
+  s += etiqueta(C + 150, 662, "al corregir: mismo id", { color: "verde", peso: 700, tam: 12 });
+  svg("errores", 920, 700, s);
+})();
+</script>
+</body>
+</html>

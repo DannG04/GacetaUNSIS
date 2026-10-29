@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de implementación — Equipo 3: Monitoreo y resiliencia</title>
+<link rel="stylesheet" href="tesis.css">
+<script src="tesis.js"></script>
+<script src="paged.polyfill.js"></script>
+<script>registrarManejadores();</script>
+</head>
+<body>
+
+<div class="portada">
+  <img class="logo" src="logo.jpeg" alt="Logo de la Universidad de la Sierra Sur">
+  <div class="institucion">Universidad de la Sierra Sur</div>
+  <div class="filete-h"></div>
+  <div class="filetes-v"></div>
+  <div class="centro">
+    <h1 class="titulo-doc">Integración del evento de Amazon S3 con AWS Lambda, logs, métricas y alarma para la Gaceta Universitaria «El Unsito»</h1>
+    <div class="tipo">MANUAL DE IMPLEMENTACIÓN</div>
+    <div class="subtipo">PROYECTO INTEGRADOR · EQUIPO 3<br>TECNOLOGÍAS DE LA INFORMACIÓN I</div>
+    <div class="rotulo">Presentan:</div>
+    <div class="nombres">Daniel González Ruiz<br>Mayra Castellanos Pacheco<br>Gael Eduardo García Pinacho<br>Elisa Sánchez Martínez</div>
+    <div class="rotulo">Docente:</div>
+    <div class="nombres">M.C.C. Eliezer Alcazar Silva</div>
+    <div class="lugar">Miahuatlán de Porfirio Díaz, Oaxaca.<br>Octubre de 2026</div>
+  </div>
+</div>
+
+<div class="indice">
+  <h1>Índice general</h1>
+  <ol class="contenido"></ol>
+  <h2 class="listas">Índice de figuras</h2>
+  <ol class="figuras"></ol>
+</div>
+
+<section class="capitulo">
+  <h1>Introducción</h1>
+  <h2>Propósito</h2>
+  <p>Este manual describe los pasos que siguió el Equipo 3 en la consola de AWS para que la carga de una imagen en S3 active la función que guarda la noticia, y para vigilar esa función con logs, una métrica y una alarma. La arquitectura y las decisiones de diseño se explican en la ficha técnica.</p>
+  <h2>Antes de empezar</h2>
+  <ul>
+    <li>Región: us-east-2 (Ohio). Todos los recursos deben estar en la misma región.</li>
+    <li>Recursos existentes: el bucket <code>mis-noticias-daniel-imagenes-906-2026</code>, la tabla <code>noticias</code> y las funciones <code>cors</code>, <code>agregarNoticia</code> y <code>obtenerNoticias</code>.</li>
+    <li>Código: la carpeta <code>codigo/</code> de los entregables contiene las funciones y la política IAM.</li>
+  </ul>
+  <div class="nota">En las capturas, el recuadro rojo señala el dato que se configura o se comprueba en cada paso.</div>
+</section>
+
+<section class="capitulo">
+  <h1>Configuración</h1>
+  <h2>Preparar la función de prefirmadas</h2>
+  <p>Antes de cambiarla, se respaldó el código de la función <code>cors</code>. Después se reemplazó por la versión nueva, que recibe los datos de la noticia, los guarda en <code>pendientes/ID.json</code> y devuelve la URL para subir la imagen a <code>imagenes/ID/foto.ext</code>. La versión nueva conserva el modo anterior para no afectar a quien tenga la página antigua en caché.</p>
+
+  <h2>Crear la función procesadora</h2>
+  <ol class="pasos">
+    <li>En <strong>Lambda › Crear función</strong>, crear <code>procesar-imagen-noticia</code> con Node.js 24.x.</li>
+    <li>Pegar el código de <code>procesar-imagen.mjs</code> y pulsar <strong>Deploy</strong>.</li>
+    <li>En <strong>Configuración general</strong>, subir el tiempo de espera a 30 segundos.</li>
+    <li>En <strong>Variables de entorno</strong>, agregar <code>TABLA</code> y <code>BUCKET</code> (figura 2.1).</li>
+  </ol>
+  <figure class="w70">
+    <img src="../docimg/variables.png" alt="Variables de entorno">
+    <figcaption>Variables de entorno de la procesadora. <code>TABLA</code> permite simular un fallo sin tocar la tabla real.</figcaption>
+  </figure>
+
+  <h2>Conectar S3 con la función</h2>
+  <ol class="pasos">
+    <li>En la procesadora, pulsar <strong>Agregar desencadenador › S3</strong>.</li>
+    <li>Elegir el bucket de imágenes, el tipo <strong>Todos los eventos de creación de objetos</strong> y el prefijo <code>imagenes/</code>.</li>
+    <li>Aceptar el aviso de invocación recursiva: no hay ciclo, porque la función no escribe en S3.</li>
+  </ol>
+  <figure class="w60">
+    <img src="../docimg/disparador.png" alt="Desencadenador S3">
+    <figcaption>Desencadenador creado: bucket, prefijo <code>imagenes/</code> y evento <code>s3:ObjectCreated:*</code>.</figcaption>
+  </figure>
+  <p>Lambda crea por sí sola el permiso para que S3 invoque la función. La regla también aparece en las propiedades del bucket (figura 2.3).</p>
+  <figure>
+    <img src="../docimg/notificacion.png" alt="Notificación de eventos del bucket">
+    <figcaption>Notificación de eventos del bucket con destino en la procesadora.</figcaption>
+  </figure>
+
+  <h2>Actualizar la consulta y el sitio</h2>
+  <p>Se reemplazó el código de <code>obtenerNoticias</code> para que también responda la consulta <code>?id=</code> con el estado <code>pendiente</code> o <code>publicada</code>. Después se subió el nuevo <code>main.js</code> al bucket del sitio y se cambió su número de versión en <code>index.html</code>; sin ese cambio, el navegador seguía usando el archivo anterior guardado en caché.</p>
+
+  <h2>Configurar los reintentos</h2>
+  <p>En <strong>Configuración › Invocación asíncrona</strong> se fijaron dos reintentos y una antigüedad máxima del evento de una hora.</p>
+  <figure class="w90">
+    <img src="../docimg/reintentos.png" alt="Invocación asíncrona">
+    <figcaption>Reintentos de la invocación asíncrona.</figcaption>
+  </figure>
+</section>
+
+<section class="capitulo">
+  <h1>Monitoreo y permisos</h1>
+  <h2>Retención de logs</h2>
+  <p>En <strong>CloudWatch › Grupos de registros</strong>, se abrió <code>/aws/lambda/procesar-imagen-noticia</code> y en <strong>Acciones › Editar configuración de retención</strong> se eligieron tres días.</p>
+  <figure class="w70">
+    <img src="../docimg/retencion.png" alt="Retención de logs">
+    <figcaption>Grupo de logs de la procesadora con retención de tres días.</figcaption>
+  </figure>
+
+  <h2>Crear la alarma</h2>
+  <ol class="pasos">
+    <li>En <strong>CloudWatch › Alarmas › Crear alarma</strong>, elegir la métrica <code>Errors</code> de la función <code>procesar-imagen-noticia</code>.</li>
+    <li>Configurar la condición: suma mayor o igual que 1 en un periodo de 1 minuto, con 1 de 1 puntos de datos.</li>
+    <li>Tratar los datos faltantes como correctos, no agregar acciones y nombrarla <code>gaceta-procesadora-errores</code>.</li>
+  </ol>
+  <figure class="w60">
+    <img src="../docimg/alarma-config.png" alt="Configuración de la alarma">
+    <figcaption>Métrica y condiciones de la alarma.</figcaption>
+  </figure>
+
+  <h2>Asignar un rol de mínimo privilegio</h2>
+  <ol class="pasos">
+    <li>En <strong>IAM › Roles › Crear rol</strong>, elegir <strong>Lambda</strong> como servicio de confianza, sin políticas administradas.</li>
+    <li>Nombrarlo <code>procesar-imagen-noticia-rol</code> y agregar las etiquetas del proyecto.</li>
+    <li>En <strong>Agregar permisos › Crear política insertada › JSON</strong>, pegar <code>procesadora-politica.json</code>. El validador debe mostrar cero problemas (figura 3.3).</li>
+    <li>En la procesadora, en <strong>Configuración general › Editar</strong>, cambiar el rol de ejecución por el nuevo.</li>
+  </ol>
+  <figure class="w70">
+    <img src="../docimg/politica.png" alt="Política mínima en JSON">
+    <figcaption>Política insertada: logs propios, lectura de <code>pendientes/</code> y escritura en la tabla.</figcaption>
+  </figure>
+  <figure class="w80">
+    <img src="../docimg/rol.png" alt="Rol creado">
+    <figcaption>Rol creado con la política <code>ProcesadoraMinimoPrivilegio</code> como único permiso.</figcaption>
+  </figure>
+</section>
+
+<section class="capitulo">
+  <h1>Pruebas</h1>
+  <p>Las pruebas se ejecutaron el 27 de octubre de 2026 desde el sitio publicado y desde la pestaña <strong>Probar</strong> de la procesadora, con los eventos de ejemplo de la carpeta <code>pruebas/</code> del repositorio.</p>
+
+  <h2>Publicación correcta (P01 y P02)</h2>
+  <p>Se publicó una noticia con imagen desde el sitio. En la red del navegador no hubo ninguna llamada a <code>agregarNoticia</code>, y los logs muestran las tres etapas del procesamiento.</p>
+  <figure>
+    <img src="../docimg/p01-logs.png" alt="Logs de P01">
+    <figcaption>Logs de P01: <code>inicio</code>, <code>validado</code> y <code>guardado</code>, en 1.56 segundos.</figcaption>
+  </figure>
+  <figure class="w80">
+    <img src="../docimg/p02-item.png" alt="Elemento en DynamoDB">
+    <figcaption>Noticia guardada en DynamoDB. El campo <code>origen = s3-evento</code> indica que la guardó la procesadora.</figcaption>
+  </figure>
+
+  <h2>Imagen sin datos (P03)</h2>
+  <p>Se envió un evento de una imagen cuyo pendiente no existe. La función registró <code>validacion_fallida</code> con el motivo y terminó sin error, porque reintentar no lo corregiría. No se creó ninguna noticia.</p>
+  <figure>
+    <img src="../docimg/p03.png" alt="Prueba P03">
+    <figcaption>P03: ejecución sin errores y log con el motivo «Pendiente ausente o inválido (NoSuchKey)».</figcaption>
+  </figure>
+
+  <h2>Falla de DynamoDB (P04)</h2>
+  <p>Se cambió la variable <code>TABLA</code> por una tabla inexistente y se publicó una noticia. La función falló tres veces con el mismo identificador de solicitud: el intento original y los dos reintentos. Al restaurar <code>TABLA = noticias</code> y reprocesar el evento, la noticia se guardó con el mismo id.</p>
+  <figure>
+    <img src="../docimg/p04.png" alt="Prueba P04">
+    <figcaption>P04: tres errores <code>ResourceNotFoundException</code> a las 23:45, 23:46 y 23:48 UTC.</figcaption>
+  </figure>
+
+  <h2>Métrica y alarma (P05 y P06)</h2>
+  <p>La métrica <code>Errors</code> registró el fallo, y la alarma pasó a estado de alarma a las 23:46:42. Al corregir la tabla volvió a la normalidad a las 23:51:42.</p>
+  <figure class="par">
+    <img src="../docimg/p05-errores.png" alt="Métrica de errores">
+    <img src="../docimg/p05-asinc.png" alt="Eventos asíncronos">
+    <figcaption>P05: pico de errores (izquierda) y eventos asíncronos recibidos y eliminados (derecha).</figcaption>
+  </figure>
+  <figure class="w70">
+    <img src="../docimg/p06-alarma.png" alt="Cambio de estado de la alarma">
+    <figcaption>P06: la alarma cambia de «Correcto» a «En modo alarma».</figcaption>
+  </figure>
+  <figure class="w90">
+    <img src="../docimg/p06-grafico.png" alt="Historial de la alarma">
+    <figcaption>P06: la franja roja marca el tiempo en alarma; después vuelve a «Correcto».</figcaption>
+  </figure>
+
+  <h2>Evento duplicado (P07)</h2>
+  <p>Se volvió a enviar el evento de la imagen de P01. La función registró <code>duplicado</code> y la tabla conservó un solo registro.</p>
+  <figure>
+    <img src="../docimg/p07.png" alt="Prueba P07">
+    <figcaption>P07: log <code>duplicado</code> para la misma noticia.</figcaption>
+  </figure>
+
+  <h2>Procesamiento lento (P08)</h2>
+  <p>Durante el fallo de P04, la web consultó el estado diez veces y avisó que la noticia seguía en procesamiento, sin volver a enviarla. Tras la recuperación apareció una sola vez.</p>
+  <figure class="w80">
+    <img src="../docimg/p08.png" alt="Prueba P08">
+    <figcaption>P08: mensaje del sitio mientras la noticia sigue pendiente.</figcaption>
+  </figure>
+</section>
+
+<section class="capitulo">
+  <h1>Cierre</h1>
+  <h2>Consumo</h2>
+  <p>El saldo fue de 120.00 USD antes y después de las pruebas, sin gasto en el mes.</p>
+  <figure class="w80">
+    <img src="../docimg/saldo.png" alt="Saldo final">
+    <figcaption>Créditos restantes y gasto del mes al terminar.</figcaption>
+  </figure>
+  <h2>Limpieza</h2>
+  <p>Al terminar el curso, eliminar los recursos en este orden:</p>
+  <ol class="pasos">
+    <li>El desencadenador de S3 de la procesadora.</li>
+    <li>La función <code>procesar-imagen-noticia</code> y su rol.</li>
+    <li>La alarma <code>gaceta-procesadora-errores</code>.</li>
+    <li>El grupo de logs <code>/aws/lambda/procesar-imagen-noticia</code>.</li>
+    <li>Los objetos de <code>pendientes/</code>, las imágenes de prueba y las noticias de prueba de la tabla.</li>
+  </ol>
+  <p>Si el sitio sigue en uso, antes se restaura en <code>cors</code> el código original (<code>prefirmadas-original.mjs</code>).</p>
+</section>
+
+</body>
+</html>
