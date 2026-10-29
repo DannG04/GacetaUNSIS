@@ -194,18 +194,18 @@ function panel(x, y, w, h, titulo, color, relleno) {
   s += flecha([[C, 280], [C, 318]]);
   s += rombo(C, 365, 250, 92, "¿Existe y tiene", "datos válidos?");
   s += flecha([[C + 125, 365], [D - 130, 365]], { color: "rojo" }) + etiqueta(C + 170, 357, "No", { color: "rojo", peso: 700 });
-  s += caja(D, 365, 260, 76, ["validacion_fallida", ["error terminal: no se reintenta", false], ["no se crea noticia (P03)", false]], { fondo: "#FDECEC", borde: COL.rojo, color: COL.rojo });
+  s += caja(D, 365, 260, 76, ["validacion_fallida", ["error terminal: no se reintenta", false], ["no se crea la noticia", false]], { fondo: "#FDECEC", borde: COL.rojo, color: COL.rojo });
   s += flecha([[C, 411], [C, 448]]) + etiqueta(C + 22, 432, "Sí", { peso: 700, fondo: false });
   s += caja(C, 478, 290, 56, ["PutItem condicional", ["solo si el id no existe", false]]);
   // Tres salidas
   s += flecha([[C, 506], [C, 568]], { color: "verde" }) + etiqueta(C + 30, 540, "ok", { color: "verde", peso: 700, fondo: false });
-  s += caja(C, 600, 250, 60, ["guardado", ["noticia publicada (P01, P02)", false]], { fondo: "#E8F5EC", borde: COL.verde, color: COL.verde });
+  s += caja(C, 600, 250, 60, ["guardado", ["noticia publicada", false]], { fondo: "#E8F5EC", borde: COL.verde, color: COL.verde });
   s += flecha([[C - 145, 478], [I + 10, 478], [I + 10, 568]], { color: "gris" }) + etiqueta(C - 200, 470, "el id ya existe", { color: "gris", peso: 700 });
-  s += caja(I + 10, 600, 200, 60, ["duplicado", ["un solo registro (P07)", false]], { fondo: COL.fondo, borde: COL.borde, color: COL.gris });
+  s += caja(I + 10, 600, 200, 60, ["duplicado", ["un solo registro", false]], { fondo: COL.fondo, borde: COL.borde, color: COL.gris });
   s += flecha([[C + 145, 478], [D, 478], [D, 520]], { color: "rojo" }) + etiqueta(C + 215, 470, "error de DynamoDB", { color: "rojo", peso: 700 });
   s += caja(D, 552, 280, 62, ["fallo: se relanza el error", ["la función termina con error", false]], { fondo: "#FDECEC", borde: COL.rojo, color: COL.rojo });
   s += flecha([[D, 583], [D, 618]], { color: "rojo" });
-  s += caja(D, 652, 280, 66, ["Errors +1 → alarma", ["Lambda reintenta 2 veces", false], ["(P04, P05, P06)", false]], { fondo: "#fff", borde: COL.rojo, color: COL.texto });
+  s += caja(D, 652, 280, 66, ["Errors +1 → alarma", ["Lambda reintenta 2 veces", false]], { fondo: "#fff", borde: COL.rojo, color: COL.texto });
   s += flecha([[D - 140, 652], [C + 128, 618]], { color: "verde", guion: true });
   s += etiqueta(C + 150, 662, "al corregir: mismo id", { color: "verde", peso: 700, tam: 12 });
   svg("errores", 920, 700, s);

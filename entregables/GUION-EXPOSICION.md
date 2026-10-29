@@ -90,13 +90,13 @@ Con la métrica creamos la alarma gaceta-procesadora-errores: si hay al menos un
 
 Expone: Gael.
 
-Dos pruebas más. A la izquierda, P07: S3 puede entregar el mismo evento dos veces, así que lo forzamos. La procesadora escribe con una condición, solo si el id no existe, y el log marca duplicado: queda un solo registro. A la derecha, P08: mientras la base de datos estaba fallando, la web no se quedó colgada ni volvió a mandar la noticia; avisó que la imagen se subió y que la noticia sigue en procesamiento. Cuando se recuperó, apareció una sola vez.
+Dos comprobaciones más. A la izquierda, el evento repetido: S3 puede entregar el mismo evento dos veces, así que lo forzamos. La procesadora escribe con una condición, solo si el id no existe, y el log marca duplicado: queda un solo registro. A la derecha, el procesamiento lento: mientras la base de datos estaba fallando, la web no se quedó colgada ni volvió a mandar la noticia; avisó que la imagen se subió y que la noticia sigue en procesamiento. Cuando se recuperó, apareció una sola vez.
 
-## 16. 8 de 8 pruebas aprobadas
+## 16. Todo lo que comprobamos
 
 Expone: Elisa.
 
-En resumen, planeamos ocho pruebas: dos de funcionamiento normal y seis de fallas y casos raros. Las ocho pasaron. Todas tienen fecha, hora, id de la noticia y su captura en la matriz de pruebas que entregamos.
+En resumen, así fuimos comprobando el sistema. Primero, en condiciones normales: la noticia se publica sola y sigue ahí al recargar. Después, provocando fallos a propósito: una imagen sin datos se descarta, una caída de la base se reintenta y se recupera, la métrica y la alarma lo detectan, un evento repetido no duplica y la web espera sin reenviar. En todos los casos el sistema hizo lo que esperábamos, y cada uno tiene su captura en el manual.
 
 ## 17. Mínimo privilegio
 

@@ -1,0 +1,89 @@
+/* Estilo de informe técnico: portada institucional UNSIS y secciones numeradas que fluyen sin capítulos. */
+@font-face { font-family: "LM Roman"; src: url(lmroman12-regular.otf); font-weight: 400; font-style: normal; }
+@font-face { font-family: "LM Roman"; src: url(lmroman12-bold.otf); font-weight: 700; font-style: normal; }
+@font-face { font-family: "LM Roman"; src: url(lmroman12-italic.otf); font-weight: 400; font-style: italic; }
+@font-face { font-family: "LM Roman"; src: url(lmroman10-bolditalic.otf); font-weight: 700; font-style: italic; }
+@font-face { font-family: "LM Roman Caps"; src: url(lmromancaps10-regular.otf); }
+@font-face { font-family: "LM Mono"; src: url(lmmono10-regular.otf); }
+
+@page {
+  size: letter;
+  margin: 2.4cm 2.5cm 2.3cm 2.5cm;
+  @top-left { content: string(documento); font-family: "LM Roman"; font-style: italic; font-size: 10pt; color: #444;
+    vertical-align: bottom; padding-bottom: 4pt; border-bottom: 0.5pt solid #999; }
+  @top-right { content: "Equipo 3 · Monitoreo y resiliencia"; font-family: "LM Roman"; font-style: italic; font-size: 10pt; color: #444;
+    vertical-align: bottom; padding-bottom: 4pt; border-bottom: 0.5pt solid #999; }
+  @bottom-center { content: counter(page); font-family: "LM Roman"; font-size: 10.5pt; }
+}
+@page portada { margin: 2cm 2.3cm 2cm 2.3cm; @top-left { content: none; border: none; } @top-right { content: none; border: none; } @bottom-center { content: none; } }
+
+html { font-family: "LM Roman", "Latin Modern Roman", serif; font-size: 11.5pt; color: #000; }
+body { margin: 0; line-height: 1.45; hyphens: auto; }
+.nombre-doc { string-set: documento content(text); display: block; height: 0; overflow: hidden; }
+p { margin: 0 0 0.28cm; text-align: justify; orphans: 3; widows: 3; }
+code, .mono { font-family: "LM Mono", monospace; font-size: 0.92em; }
+strong { font-weight: 700; }
+a { color: inherit; text-decoration: none; }
+
+/* ---------- Portada ---------- */
+.portada { page: portada; position: relative; height: 23.9cm; break-after: page; }
+.portada .logo { position: absolute; left: 0; top: 0; width: 3.4cm; }
+.portada .institucion { position: absolute; left: 3.9cm; right: 0; top: 0.95cm; text-align: center; font-size: 17pt; font-weight: 700; }
+.portada .filete-h { position: absolute; left: 3.9cm; right: 0; top: 2.05cm; border-top: 2.6pt solid #000; }
+.portada .filetes-v { position: absolute; left: 0.45cm; top: 3.8cm; bottom: 0; width: 0.9cm;
+  border-left: 3.4pt solid #000; border-right: 3.4pt solid #000; }
+.portada .filetes-v::after { content: ""; position: absolute; left: 0.36cm; top: 0; bottom: 0; border-left: 3.4pt solid #000; }
+.portada .centro { position: absolute; left: 2.2cm; right: 0; top: 4.4cm; text-align: center; }
+.portada h1.titulo-doc { font-size: 20pt; line-height: 1.3; margin: 0 0 1.1cm; font-weight: 700; }
+.portada .tipo { font-size: 14pt; font-weight: 700; letter-spacing: 0.42em; margin-bottom: 0.25cm; }
+.portada .subtipo { font-family: "LM Roman Caps", serif; font-weight: 700; font-size: 11.5pt; line-height: 1.35; margin-bottom: 1cm; }
+.portada .rotulo { font-weight: 700; font-size: 13pt; margin: 0.55cm 0 0.2cm; }
+.portada .nombres { font-weight: 700; font-size: 12.5pt; line-height: 1.45; }
+.portada .lugar { margin-top: 1.1cm; font-size: 12pt; line-height: 1.4; }
+
+/* ---------- Contenido breve (opcional, en la primera página) ---------- */
+.contenido { margin: 0 0 0.6cm; padding: 0.3cm 0.45cm; background: #f3f3f3; font-size: 10.5pt; line-height: 1.5; break-inside: avoid; }
+.contenido .rot { font-weight: 700; margin-bottom: 0.1cm; }
+.contenido ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 0.8cm; }
+.contenido li { display: flex; align-items: baseline; break-inside: avoid; }
+.contenido li .num { flex: none; width: 1.8em; }
+.contenido li .txt { flex: none; max-width: 78%; }
+.contenido li .puntos { flex: 1; border-bottom: 1pt dotted #777; margin: 0 0.3em; transform: translateY(-0.25em); }
+.contenido li a.pag::after { content: target-counter(attr(href), page); }
+
+/* ---------- Secciones ---------- */
+h2 { font-size: 15pt; margin: 0.75cm 0 0.3cm; break-after: avoid; }
+h3 { font-size: 12.5pt; margin: 0.5cm 0 0.22cm; break-after: avoid; }
+h2 .n { display: inline-block; min-width: 1.6em; padding-right: 0.15em; }
+h3 .n { display: inline-block; min-width: 2.4em; }
+
+/* ---------- Datos generales ---------- */
+.datos { width: 100%; border-collapse: collapse; font-size: 10.5pt; line-height: 1.35; margin: 0 0 0.5cm; break-inside: avoid; }
+.datos th { text-align: left; font-weight: 700; width: 27%; padding: 3.5pt 8pt 3.5pt 0; vertical-align: top; }
+.datos td { padding: 3.5pt 0; vertical-align: top; }
+.datos tr { border-bottom: 0.5pt solid #bbb; }
+.datos tr:first-child { border-top: 1.2pt solid #000; }
+.datos tr:last-child { border-bottom: 1.2pt solid #000; }
+
+/* ---------- Figuras y tablas ---------- */
+figure { margin: 0.45cm 0 0.5cm; text-align: center; break-inside: avoid; }
+figure img { max-width: 100%; max-height: 10.5cm; border: 0.6pt solid #9a9a9a; }
+figure.diagrama img { border: none; max-height: 12.5cm; }
+figure.w90 img { width: 90%; } figure.w80 img { width: 80%; } figure.w70 img { width: 70%; } figure.w60 img { width: 60%; } figure.w50 img { width: 50%; }
+figure.par { display: flex; justify-content: center; gap: 0.6cm; flex-wrap: wrap; }
+figure.par img { width: 47%; }
+figure.par figcaption { flex-basis: 100%; }
+figcaption { font-size: 10pt; margin-top: 0.2cm; line-height: 1.35; padding: 0 0.6cm; }
+figcaption .etq, .tabla caption .etq { font-weight: 700; }
+
+.tabla { margin: 0.45cm auto 0.5cm; border-collapse: collapse; font-size: 10.5pt; line-height: 1.35; break-inside: avoid; width: 100%; }
+.tabla caption { caption-side: top; font-size: 10pt; margin-bottom: 0.2cm; }
+.tabla thead th { border-top: 1.2pt solid #000; border-bottom: 0.6pt solid #000; font-weight: 700; text-align: left; padding: 4pt 6pt; }
+.tabla td { padding: 3.5pt 6pt; vertical-align: top; text-align: left; }
+.tabla tbody tr:last-child td { border-bottom: 1.2pt solid #000; }
+.tabla td.c, .tabla th.c { text-align: center; }
+
+ul, ol.pasos { margin: 0.1cm 0 0.3cm; padding-left: 1.5em; }
+ul li, ol.pasos li { text-align: justify; margin-bottom: 0.1cm; }
+.nota { margin: 0.35cm 0; padding: 0.25cm 0.4cm; border-left: 2.2pt solid #000; font-size: 10.5pt; background: #f3f3f3; }
+.ok { font-weight: 700; }
