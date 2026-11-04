@@ -31,24 +31,24 @@
 
   <table class="datos">
     <tr><th>Proyecto</th><td>Gaceta Universitaria «El Unsito» en Amazon Web Services</td></tr>
-    <tr><th>Tema del equipo</th><td>Monitoreo y resiliencia: evento de S3 → Lambda, logs, métrica y alarma</td></tr>
+    <tr><th>Nuestro tema</th><td>Monitoreo y resiliencia: evento de S3 → Lambda, logs, métrica y alarma</td></tr>
     <tr><th>Región</th><td>us-east-2 (Ohio)</td></tr>
     <tr><th>Servicios</th><td>Amazon S3, AWS Lambda (Node.js 24.x), Amazon DynamoDB, Amazon CloudWatch, AWS IAM</td></tr>
     <tr><th>Recurso nuevo</th><td>Función <code>procesar-imagen-noticia</code>, su rol y la alarma <code>gaceta-procesadora-errores</code></td></tr>
-    <tr><th>Verificación</th><td>Funcionamiento normal y fallos provocados, todos con el resultado esperado (27 de octubre de 2026)</td></tr>
+    <tr><th>Verificación</th><td>Funcionamiento normal y fallos provocados, todos con el resultado esperado</td></tr>
     <tr><th>Costo</th><td>0.00 USD, dentro del nivel gratuito</td></tr>
   </table>
 
   <h2>Problema y objetivo</h2>
   <p>La gaceta ya permitía publicar noticias con imagen, pero el navegador coordinaba todo el proceso: primero subía la imagen a Amazon S3 y después llamaba a la función <code>agregarNoticia</code> para guardar la noticia en DynamoDB. Si la segunda llamada fallaba, la imagen quedaba almacenada sin noticia y no existía ningún registro, métrica ni aviso del error.</p>
-  <p>El objetivo fue que la nube procese la publicación por sí misma en cuanto llega la imagen, y que cualquier fallo quede registrado, se reintente cuando tenga sentido y genere una alerta. En concreto, el equipo se propuso:</p>
+  <p>El objetivo fue que la nube procese la publicación por sí misma en cuanto llega la imagen, y que cualquier fallo quede registrado, se reintente cuando tenga sentido y genere una alerta. En concreto, nos propusimos:</p>
   <ul>
     <li>Conectar el evento de carga de S3 con una función Lambda y retirar la llamada que hacía el navegador después de subir la imagen.</li>
     <li>Registrar logs útiles de esa función sin incluir secretos.</li>
     <li>Definir una señal observable —la métrica de errores— con una alarma.</li>
     <li>Documentar qué ocurre ante una carga fallida, una imagen sin datos y un error al guardar.</li>
   </ul>
-  <p>El trabajo se hizo sobre el bucket y la tabla que comparte todo el grupo, sin modificar su estructura. Las noticias sin imagen siguen usando la función <code>agregarNoticia</code>, porque no generan un evento de S3. La cola de mensajes fallidos con SQS, propuesta como ampliación opcional, no se implementó.</p>
+  <p>Trabajamos sobre el bucket y la tabla que comparte todo el grupo, sin modificar su estructura. Las noticias sin imagen siguen usando la función <code>agregarNoticia</code>, porque no generan un evento de S3. La cola de mensajes fallidos con SQS, propuesta como ampliación opcional, no la implementamos.</p>
 
   <h2>Arquitectura</h2>
   <p>El cambio principal es quién inicia el guardado. Antes lo hacía el navegador con una segunda llamada; ahora lo hace S3, que avisa a una función nueva en cuanto termina de recibir la imagen (figura 1).</p>
@@ -75,7 +75,7 @@
   </table>
 
   <h2>Monitoreo</h2>
-  <p>Se eligió la métrica <code>Errors</code>, que Lambda publica en CloudWatch sin configuración adicional. La alarma <code>gaceta-procesadora-errores</code> pasa a estado de alarma cuando hay al menos un error en un minuto. Además, la procesadora escribe una línea de log por etapa (<code>inicio</code>, <code>validado</code>, <code>guardado</code>, <code>duplicado</code>, <code>fallo</code>) con el identificador de la noticia, lo que permite rastrear cualquier publicación. Los logs no incluyen firmas de URL ni el texto de la noticia, y se conservan tres días.</p>
+  <p>Elegimos la métrica <code>Errors</code>, que Lambda publica en CloudWatch sin configuración adicional. La alarma <code>gaceta-procesadora-errores</code> pasa a estado de alarma cuando hay al menos un error en un minuto. Además, la procesadora escribe una línea de log por etapa (<code>inicio</code>, <code>validado</code>, <code>guardado</code>, <code>duplicado</code>, <code>fallo</code>) con el identificador de la noticia, lo que permite rastrear cualquier publicación. Los logs no incluyen firmas de URL ni el texto de la noticia, y se conservan tres días.</p>
 
   <h2>Manejo de fallos</h2>
   <p>No todos los errores se tratan igual. Los que no se arreglan con reintentos terminan sin error y se registran; los que pueden ser temporales, como un fallo de la base de datos, se relanzan para que Lambda los reintente y la alarma se active (figura 3).</p>
@@ -84,8 +84,8 @@
     <figcaption>Decisiones de la procesadora ante cada evento.</figcaption>
   </figure>
   <table class="tabla">
-    <caption>Qué hacer ante los fallos que pide la rúbrica.</caption>
-    <thead><tr><th style="width:22%">Situación</th><th style="width:42%">Qué hace el sistema</th><th>Qué hace el equipo</th></tr></thead>
+    <caption>Qué hacer ante cada tipo de fallo.</caption>
+    <thead><tr><th style="width:22%">Situación</th><th style="width:42%">Qué hace el sistema</th><th>Qué hacemos nosotros</th></tr></thead>
     <tbody>
       <tr><td>Carga fallida</td><td>Sin imagen no hay evento, así que no se guarda nada a medias. La web conserva los datos y reintenta con el mismo id.</td><td>Volver a publicar desde el formulario.</td></tr>
       <tr><td>Imagen sin datos</td><td>Registra <code>validacion_fallida</code> y termina; no se crea la noticia.</td><td>Buscar el id en los logs y publicar de nuevo.</td></tr>
@@ -94,7 +94,7 @@
   </table>
 
   <h2>Cómo lo comprobamos</h2>
-  <p>Una vez desplegado el flujo, lo fuimos poniendo a prueba el 27 de octubre de 2026, primero en condiciones normales y después provocando fallos a propósito.</p>
+  <p>Una vez desplegado el flujo, lo fuimos poniendo a prueba, primero en condiciones normales y después provocando fallos a propósito.</p>
   <p>Empezamos por lo básico: publicamos una noticia con imagen desde el sitio. En la red del navegador ya no apareció ninguna llamada a <code>agregarNoticia</code>; fue el evento de S3 el que activó la procesadora, y la noticia quedó guardada en DynamoDB y visible al recargar la página.</p>
   <p>Luego buscamos que algo saliera mal. Enviamos una imagen cuyos datos no existían, y la función lo registró como <code>validacion_fallida</code> sin crear una noticia incompleta. Después apuntamos la función a una tabla inexistente para simular una caída de la base de datos: Lambda la reintentó dos veces, la métrica <code>Errors</code> registró el pico y la alarma se encendió; al corregir la tabla, la noticia se guardó con el mismo id y la alarma volvió a la normalidad. Ese mismo fallo nos permitió ver que la web avisa que la noticia sigue en procesamiento en lugar de reenviarla. Por último, repetimos un evento ya procesado y la tabla conservó un solo registro.</p>
   <table class="tabla">
@@ -105,7 +105,7 @@
       <tr><td>Recargar el sitio</td><td>Que la noticia siga ahí</td><td>Aparece con su imagen; en la tabla figura <code>origen = s3-evento</code></td></tr>
       <tr><td>Imagen sin datos</td><td>Que se descarte sin dejar nada a medias</td><td>Se registró <code>validacion_fallida</code> y no se creó la noticia</td></tr>
       <tr><td>Base de datos caída</td><td>Que se reintente y no se pierda la noticia</td><td>Tres intentos fallidos; al corregir se guardó con el mismo id</td></tr>
-      <tr><td>Métrica y alarma</td><td>Que el fallo se note sin revisar los logs</td><td>La alarma se encendió a las 23:46 y se apagó a las 23:51</td></tr>
+      <tr><td>Métrica y alarma</td><td>Que el fallo se note sin revisar los logs</td><td>La alarma se encendió y, al corregir, se apagó sola</td></tr>
       <tr><td>Evento repetido</td><td>Que no se duplique la noticia</td><td>Se registró <code>duplicado</code>; quedó un solo registro</td></tr>
       <tr><td>Procesamiento lento</td><td>Que la web espere sin reenviar</td><td>Mostró «en procesamiento» y la noticia apareció una sola vez</td></tr>
     </tbody>
@@ -125,12 +125,12 @@
   <p>El código y las variables de entorno no contienen claves. Las otras tres funciones del proyecto siguen con un rol amplio (<code>PowerUserAccess</code>); en un entorno real cada una debería tener el suyo.</p>
 
   <h2>Costos y recursos por eliminar</h2>
-  <p>El saldo fue de 120.00 USD antes y después de las pruebas, con un gasto de 0.00 USD: Lambda, S3, DynamoDB bajo demanda y CloudWatch quedaron dentro del nivel gratuito. Para no generar cargos se limitó la retención de logs a tres días, la alarma no envía correos ni SMS y no se crearon colas ni servidores. Los recursos del equipo llevan las etiquetas <code>proyecto=NoticiasAWS</code>, <code>equipo=3</code> y <code>entorno=Laboratorio</code>.</p>
-  <p>Al cerrar el curso se eliminan, en este orden: el disparador de S3, la función <code>procesar-imagen-noticia</code>, su rol, la alarma, el grupo de logs, los objetos de <code>pendientes/</code> y las imágenes de prueba, y las noticias de prueba de la tabla. Si el sitio sigue en uso, antes se restaura la versión original de la función <code>cors</code>.</p>
+  <p>El saldo fue de 120.00 USD antes y después de las pruebas, con un gasto de 0.00 USD: Lambda, S3, DynamoDB bajo demanda y CloudWatch quedaron dentro del nivel gratuito. Para no generar cargos limitamos la retención de logs a tres días, la alarma no envía correos ni SMS y no creamos colas ni servidores. Nuestros recursos llevan las etiquetas <code>proyecto=NoticiasAWS</code>, <code>equipo=3</code> y <code>entorno=Laboratorio</code>.</p>
+  <p>Al cerrar el curso eliminaremos, en este orden: el disparador de S3, la función <code>procesar-imagen-noticia</code>, su rol, la alarma, el grupo de logs, los objetos de <code>pendientes/</code> y las imágenes de prueba, y las noticias de prueba de la tabla. Si el sitio sigue en uso, antes restauraremos la versión original de la función <code>cors</code>.</p>
 
   <h2>Conclusiones</h2>
   <p>La publicación de noticias ya no depende de que el navegador complete una segunda llamada. S3 inicia el procesamiento, cada noticia deja un rastro en los logs, los fallos temporales se reintentan solos y una alarma avisa cuando algo sale mal. Lo comprobamos publicando noticias reales y provocando fallos a propósito: en todos los casos el sistema se comportó como esperábamos y no se duplicó ninguna noticia.</p>
-  <p>Para un entorno real quedarían pendientes una cola de mensajes fallidos con SQS, el envío de la alarma por correo con SNS, la eliminación automática de los pendientes antiguos y un rol de mínimo privilegio para cada función del proyecto.</p>
+  <p>Para un entorno real nos quedarían pendientes una cola de mensajes fallidos con SQS, el envío de la alarma por correo con SNS, la eliminación automática de los pendientes antiguos y un rol de mínimo privilegio para cada función del proyecto.</p>
 </main>
 
 </body>

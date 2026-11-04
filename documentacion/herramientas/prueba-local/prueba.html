@@ -1,0 +1,51 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Prueba local de las Lambdas</title>
+<script>window.process={env:{}};window.Buffer={from:(s)=>({toString:()=>atob(s)})};</script>
+<script type="importmap">{"imports":{"@aws-sdk/client-dynamodb":"./simulados/aws-sdk.js","@aws-sdk/lib-dynamodb":"./simulados/aws-sdk.js","@aws-sdk/client-s3":"./simulados/aws-sdk.js","@aws-sdk/s3-request-presigner":"./simulados/aws-sdk.js","node:crypto":"./simulados/crypto.js"}}</script>
+</head><body><pre id="out"></pre><script type="module">
+import { estado } from './simulados/aws-sdk.js';
+import { handler as procesar } from '../../../entregables/codigo/procesar-imagen.mjs';
+import { handler as prefirmar } from '../../../entregables/codigo/prefirmar-noticia.mjs';
+import { handler as obtener } from '../../../entregables/codigo/obtener-noticias.mjs';
+const out=[]; const ok=(n,c,x='')=>out.push((c?'PASA ':'FALLA ')+n+' '+x);
+const logs=[]; const ol=console.log, oe=console.error; console.log=(...a)=>{logs.push(a.join(' '));}; console.error=(...a)=>{logs.push(a.join(' '));};
+const ev=(key,size=1000)=>({Records:[{s3:{bucket:{name:'mis-noticias-daniel-imagenes-906-2026'},object:{key,size}}}]});
+const ctx={awsRequestId:'req-1'};
+try{
+ // Prefirmar: modo nuevo
+ const id='d81845b4-6767-4ddd-be9f-b36492435723';
+ let r=await prefirmar({requestContext:{http:{method:'POST'}},body:JSON.stringify({id,titulo:'T',detalle:'D',fecha:'2026-11-04',categoria:'General',alt:'foto',tipo:'image/webp'})},ctx);
+ let b=JSON.parse(r.body); ok('prefirmar devuelve 200 y uploadUrl', r.statusCode===200 && b.noticiaId===id && b.key===`imagenes/${id}/foto.webp`, r.body);
+ ok('prefirmar guarda pendientes/ID.json', !!estado.s3[`pendientes/${id}.json`]);
+ r=await prefirmar({requestContext:{http:{method:'POST'}},body:JSON.stringify({titulo:'T',detalle:'D',fecha:'mal',categoria:'G',alt:'a',tipo:'image/png'})},ctx);
+ ok('prefirmar rechaza fecha inválida (400)', r.statusCode===400, r.body);
+ r=await prefirmar({requestContext:{http:{method:'POST'}},queryStringParameters:{file:'x.jpg'}},ctx);
+ ok('prefirmar modo ?file= sigue funcionando', r.statusCode===200 && JSON.parse(r.body).uploadUrl);
+ // consulta pendiente
+ r=await obtener({requestContext:{http:{method:'GET'}},queryStringParameters:{id}});
+ ok('obtener ?id= antes del evento = pendiente', JSON.parse(r.body).estado==='pendiente', r.body);
+ // P01
+ r=await procesar(ev(`imagenes/${id}/foto.webp`),ctx);
+ ok('P01 procesadora guarda la noticia', estado.tabla[id]?.origen==='s3-evento', JSON.stringify(r));
+ r=await obtener({requestContext:{http:{method:'GET'}},queryStringParameters:{id}});
+ ok('P02 obtener ?id= = publicada', JSON.parse(r.body).estado==='publicada');
+ // P03
+ logs.length=0; r=await procesar(ev('imagenes/00000000-0000-4000-8000-000000000000/foto.jpg'),ctx);
+ ok('P03 sin pendiente: termina sin error y registra validacion_fallida', logs.some(l=>l.includes('validacion_fallida')&&l.includes('NoSuchKey')));
+ // P07
+ logs.length=0; await procesar(ev(`imagenes/${id}/foto.webp`),ctx);
+ ok('P07 duplicado no crea segundo registro', logs.some(l=>l.includes('"duplicado"')) && Object.keys(estado.tabla).length===1);
+ // P04
+ const id2='a082e96b-a1b7-40da-bade-06677ac730ca';
+ await prefirmar({requestContext:{http:{method:'POST'}},body:JSON.stringify({id:id2,titulo:'T2',detalle:'D',fecha:'2026-11-04',categoria:'General',alt:'foto',tipo:'image/webp'})},ctx);
+ estado.fallarDB=true; let lanzo=false; try{await procesar(ev(`imagenes/${id2}/foto.webp`),ctx);}catch(e){lanzo=e.message.includes('ResourceNotFoundException');}
+ ok('P04 fallo de DynamoDB relanza el error (activa reintentos y métrica Errors)', lanzo);
+ estado.fallarDB=false; await procesar(ev(`imagenes/${id2}/foto.webp`),ctx);
+ ok('P04 recuperación guarda con el mismo id', !!estado.tabla[id2]);
+ // formato antiguo
+ logs.length=0; await procesar(ev('imagenes/123-foto.jpg'),ctx);
+ ok('Imagen del flujo anterior se omite sin error', logs.some(l=>l.includes('omitido_sin_formato')));
+ r=await obtener({requestContext:{http:{method:'GET'}}});
+ ok('obtener lista completa', JSON.parse(r.body).length===2);
+}catch(e){out.push('EXCEPCION '+e.stack);}
+document.getElementById('out').textContent=out.join('\n');
+</script></body></html>

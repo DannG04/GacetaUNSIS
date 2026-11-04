@@ -1,6 +1,6 @@
 # Guion de exposición — Equipo 3: Monitoreo y resiliencia
 
-Reparto sugerido; el equipo puede cambiarlo. Las mismas notas están en la presentación (vista del orador).
+Reparto sugerido; podemos cambiarlo entre nosotros. Las mismas notas están en la presentación (vista del orador).
 
 ## 1. Portada: Monitoreo y resiliencia
 
@@ -18,7 +18,7 @@ Este es el recorrido: primero el problema que encontramos, luego quiénes somos,
 
 Expone: Daniel.
 
-Cuando llegamos, la gaceta ya funcionaba: subía fotos a S3 y guardaba noticias en DynamoDB. El detalle es que el navegador era el que coordinaba todo. Primero subía la imagen y luego hacía una segunda llamada para guardar. Si esa segunda llamada se perdía —se cerró la pestaña, falló la red, falló la base de datos— la foto quedaba en S3 sin noticia y nadie se daba cuenta. La rúbrica nos pidió justo eso: quitar esa llamada del navegador, que el evento de S3 dispare la Lambda, y poder ver y manejar los errores.
+Cuando llegamos, la gaceta ya funcionaba: subía fotos a S3 y guardaba noticias en DynamoDB. El detalle es que el navegador era el que coordinaba todo. Primero subía la imagen y luego hacía una segunda llamada para guardar. Si esa segunda llamada se perdía —se cerró la pestaña, falló la red, falló la base de datos— la foto quedaba en S3 sin noticia y nadie se daba cuenta. Nuestro reto fue justo ese: quitar esa llamada del navegador, que el evento de S3 dispare la Lambda, y poder ver y manejar los errores.
 
 ## 4. Equipo de trabajo
 
@@ -60,7 +60,7 @@ Aquí está la prueba de que funciona. En DynamoDB aparece la noticia, y marcamo
 
 Expone: Gael.
 
-Un sistema no es resiliente porque nunca falle, sino porque sabe qué hacer cuando falla. Así que rompimos cosas a propósito. La rúbrica pide tres casos. Uno: si la imagen no se sube, no hay evento y no queda nada a medias. Dos: si llega una imagen sin sus datos, es un error que no se arregla reintentando, así que lo registramos y terminamos. Tres: si falla la base de datos, ese sí vale la pena reintentarlo, así que lanzamos el error para que Lambda lo reintente y la alarma se encienda. Ahora les mostramos cada uno.
+Un sistema no es resiliente porque nunca falle, sino porque sabe qué hacer cuando falla. Así que rompimos cosas a propósito. Revisamos tres casos. Uno: si la imagen no se sube, no hay evento y no queda nada a medias. Dos: si llega una imagen sin sus datos, es un error que no se arregla reintentando, así que lo registramos y terminamos. Tres: si falla la base de datos, ese sí vale la pena reintentarlo, así que lanzamos el error para que Lambda lo reintente y la alarma se encienda. Ahora les mostramos cada uno.
 
 ## 11. Imagen sin datos: se descarta
 
@@ -78,13 +78,13 @@ Segunda prueba, la más importante. Para simular que la base de datos falla sin 
 
 Expone: Gael.
 
-La rúbrica pide una señal observable. Elegimos la métrica Errors, que Lambda publica sola en CloudWatch. Aquí se ve el pico de errores y cómo la tasa de éxito bajó a cero durante la falla. En el panel de eventos asíncronos se ven los tres intentos y que uno se descartó al agotar los reintentos. Importante: esto solo funciona porque la procesadora relanza el error; si lo atrapara y devolviera un 500, la métrica no se movería.
+Necesitábamos una señal que nos avisara de los fallos. Elegimos la métrica Errors, que Lambda publica sola en CloudWatch. Aquí se ve el pico de errores y cómo la tasa de éxito bajó a cero durante la falla. En el panel de eventos asíncronos se ven los tres intentos y que uno se descartó al agotar los reintentos. Importante: esto solo funciona porque la procesadora relanza el error; si lo atrapara y devolviera un 500, la métrica no se movería.
 
 ## 14. La alarma se encendió… y se apagó
 
 Expone: Gael.
 
-Con la métrica creamos la alarma gaceta-procesadora-errores: si hay al menos un error en un minuto, se enciende. Arriba se ve el momento exacto, 23:46:42, en que pasó de Correcto a En modo alarma. Abajo, la franja roja es el tiempo que duró el problema y, al corregirlo, a las 23:51:42 volvió sola a Correcto. No le pusimos notificación por correo para no generar suscripciones, pero se puede agregar con SNS en un clic.
+Con la métrica creamos la alarma gaceta-procesadora-errores: si hay al menos un error en un minuto, se enciende. Arriba se ve el momento en que pasó de Correcto a En modo alarma. Abajo, la franja roja es el tiempo que duró el problema y, al corregirlo, unos cinco minutos después volvió sola a Correcto. No le pusimos notificación por correo para no generar suscripciones, pero se puede agregar con SNS en un clic.
 
 ## 15. Sin duplicados y con paciencia
 

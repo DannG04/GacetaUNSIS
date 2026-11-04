@@ -1,7 +1,7 @@
 # Recortes para los documentos: coordenadas en la vista de 2000 px de ancho.
 import os
 from PIL import Image, ImageDraw
-IMG = '/home/pruebas1/Documentos/GacetaUNSIS/documentacion/img/'
+IMG = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'img')) + '/'
 OUT = os.path.dirname(os.path.abspath(__file__)) + '/docimg/'
 RED = (215, 25, 32)
 
