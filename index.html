@@ -15,7 +15,7 @@
 
   <!-- Marca que JavaScript está disponible (el menú móvil solo se oculta si hay JS) -->
   <script>document.documentElement.classList.add('js');</script>
-  <script src="js/main.js?v=noticias-s3-evento-1" defer></script>
+  <script src="js/main.js?v=noticias-sns-1" defer></script>
 </head>
 <body>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
@@ -41,6 +41,7 @@
       <nav class="navegacion" id="menu-principal" aria-label="Principal">
         <ul class="navegacion__lista">
           <li><a class="navegacion__enlace" href="#noticias">Noticias</a></li>
+          <li><a class="navegacion__enlace" href="#suscribirse">Suscribirse</a></li>
           <li><a class="navegacion__enlace" href="#crear-noticia">Crear noticia</a></li>
           <li><a class="navegacion__enlace" href="#unsis">La UNSIS</a></li>
           <li><a class="navegacion__enlace" href="#egresados">Egresados</a></li>
@@ -80,6 +81,19 @@
         <div class="noticias__mas">
           <button class="boton boton--contorno" type="button" id="ver-mas" hidden>Ver más noticias</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ========== SUSCRIPCIÓN POR CORREO (Amazon SNS) ========== -->
+    <section class="seccion suscripcion" id="suscribirse" aria-labelledby="suscripcion-titulo">
+      <div class="contenedor">
+        <h2 class="seccion__titulo" id="suscripcion-titulo">Recibe las noticias en tu correo</h2>
+        <p>Te enviaremos un aviso cada vez que se publique una noticia. Primero te llegará un correo de AWS Notifications para confirmar la suscripción; cada aviso incluye un enlace para darte de baja.</p>
+        <form id="formulario-suscripcion" class="formulario-noticia formulario-suscripcion" novalidate>
+          <label>Correo electrónico<input name="correo" type="email" required maxlength="254" autocomplete="email" inputmode="email" placeholder="nombre@ejemplo.com"></label>
+          <button class="boton" type="submit">Suscribirme</button>
+          <p id="suscripcion-estado" role="status" aria-live="polite"></p>
+        </form>
       </div>
     </section>
 
