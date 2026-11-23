@@ -11,7 +11,11 @@ const REMITENTE = process.env.REMITENTE; // p. ej. "El Unsito <correo-verificado
 const SITIO = process.env.SITIO_URL || 'http://906-unsis-daniel.s3-website.us-east-2.amazonaws.com/';
 const BUCKET_SITIO = process.env.BUCKET_SITIO || '906-unsis-daniel';
 const BUCKET_IMAGENES = process.env.BUCKET_IMAGENES || 'mis-noticias-daniel-imagenes-906-2026';
-const PUBLICO = `https://${BUCKET_SITIO}.s3.${REGION}.amazonaws.com/`;
+// Con CloudFront (CDN_URL = https://dxxxx.cloudfront.net) el logo y las fotos salen de la distribución
+// y la foto ya no se copia al bucket del sitio. Sin CDN_URL se comporta como antes.
+const CDN = (process.env.CDN_URL || '').replace(/\/+$/, '');
+const FOTO_CDN = /^imagenes\/[0-9a-f-]{36}\/foto\.(jpg|png|webp)$/i;
+const PUBLICO = CDN ? `${CDN}/` : `https://${BUCKET_SITIO}.s3.${REGION}.amazonaws.com/`;
 const LOGO = process.env.LOGO_URL || `${PUBLICO}imagenes/correo/logo.png`;
 
 const sns = new SNSClient({ region: REGION });
@@ -40,6 +44,7 @@ async function imagenPublica(noticia) {
   const key = String(noticia.imagenKey || '');
   const m = key.match(/^imagenes\/[\w-]+(?:\/foto)?[\w.-]*\.(jpg|jpeg|png|webp)$/i);
   if (!m) return '';
+  if (CDN && FOTO_CDN.test(key)) return `${CDN}/${key}`;
   const destino = `correo/${noticia.id}.${m[1].toLowerCase()}`;
   try {
     await s3.send(new CopyObjectCommand({ Bucket: BUCKET_SITIO, Key: destino, CopySource: `${BUCKET_IMAGENES}/${key}`, MetadataDirective: 'COPY' }));

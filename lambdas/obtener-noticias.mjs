@@ -7,6 +7,11 @@ const db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'us-east-2' 
 const s3 = new S3Client({ region: 'us-east-2' });
 const BUCKET = 'mis-noticias-daniel-imagenes-906-2026';
 const headers = { 'Content-Type': 'application/json' };
+// Dominio de CloudFront, p. ej. https://dxxxx.cloudfront.net. Sin él se usan URLs prefirmadas como antes.
+const CDN = (process.env.CDN_URL || '').replace(/\/+$/, '');
+// Solo las fotos del flujo con evento S3 (imagenes/<uuid>/foto.ext) pasan por CloudFront: es el patrón
+// de la ruta /imagenes/*/foto.* de la distribución. Las imágenes del flujo anterior siguen prefirmadas.
+const FOTO_CDN = /^imagenes\/[0-9a-f-]{36}\/foto\.(jpg|png|webp)$/i;
 export const handler = async event => {
   const metodo = event.requestContext?.http?.method || event.httpMethod;
   if (metodo === 'OPTIONS') return { statusCode: 200, headers, body: '' };
@@ -17,7 +22,9 @@ export const handler = async event => {
     let url;
     try { url = new URL(noticia.imagen); } catch { return noticia; }
     if (url.hostname !== `${BUCKET}.s3.us-east-2.amazonaws.com` || !url.pathname.startsWith('/imagenes/')) return noticia;
-    const imagen = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: decodeURIComponent(url.pathname.slice(1)) }), { expiresIn: 3600 });
+    const key = decodeURIComponent(url.pathname.slice(1));
+    if (CDN && FOTO_CDN.test(key)) return { ...noticia, imagen: `${CDN}/${key}` };
+    const imagen = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn: 3600 });
     return { ...noticia, imagen };
   };
   try {
