@@ -751,6 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
   prepararSeccionActiva();
   prepararLector();
   prepararPublicacion();
+  prepararSuscripcion();
   document.getElementById('recargar-noticias')?.addEventListener('click', cargarNoticias);
   if (document.getElementById('lista-noticias')) cargarNoticias();
 });
@@ -759,7 +760,9 @@ document.addEventListener('DOMContentLoaded', () => {
 const API_NOTICIAS = Object.freeze({
   obtener: 'https://kewecagxxd44porzgzstv37g5q0nsays.lambda-url.us-east-2.on.aws/',
   agregar: 'https://ufepu6szpto7mzedlr4isb3uiu0rzubq.lambda-url.us-east-2.on.aws/',
-  prefirmar: 'https://krveeq3gnhqdy3r3kuyfhubrim0olhaw.lambda-url.us-east-2.on.aws/'
+  prefirmar: 'https://krveeq3gnhqdy3r3kuyfhubrim0olhaw.lambda-url.us-east-2.on.aws/',
+  // URL de función de suscribir-noticias (SNS). Ver INTEGRACION-SNS.md.
+  suscribir: 'https://jneqwan7m2p3sjely2talw4rvm0infnt.lambda-url.us-east-2.on.aws/'
 });
 
 async function solicitarJSON(url, opciones = {}) {
@@ -767,7 +770,7 @@ async function solicitarJSON(url, opciones = {}) {
   try {
     respuesta = await fetch(url, { ...opciones, signal: AbortSignal.timeout(30000) });
   } catch (error) {
-    const servicio = new URL(url).origin === new URL(API_NOTICIAS.prefirmar).origin ? 'la Lambda de URLs prefirmadas' : url === API_NOTICIAS.agregar ? 'la Lambda de agregar noticias' : 'la Lambda de obtener noticias';
+    const servicio = new URL(url).origin === new URL(API_NOTICIAS.prefirmar).origin ? 'la Lambda de URLs prefirmadas' : url === API_NOTICIAS.agregar ? 'la Lambda de agregar noticias' : url === API_NOTICIAS.suscribir ? 'la Lambda de suscripciones' : 'la Lambda de obtener noticias';
     console.error(`Falló la conexión con ${servicio}`, { url, error });
     throw new Error(`No se pudo completar la conexión con ${servicio}. Revisa la pestaña Red del navegador y la configuración CORS de esa Lambda.`);
   }
@@ -973,6 +976,38 @@ function prepararPublicacion() {
     } finally {
       enviando = false;
       document.getElementById('campos-noticia').disabled = false;
+    }
+  });
+}
+
+// Suscripción por correo: la Lambda llama a sns:Subscribe y AWS envía el correo de confirmación.
+function prepararSuscripcion() {
+  const formulario = document.getElementById('formulario-suscripcion');
+  if (!formulario) return;
+  const estado = document.getElementById('suscripcion-estado');
+  const campo = formulario.elements.correo;
+  const boton = formulario.querySelector('button');
+  let enviando = false;
+  formulario.addEventListener('submit', async evento => {
+    evento.preventDefault();
+    if (enviando) return;
+    const correo = campo.value.trim();
+    if (!correo || !campo.checkValidity()) { estado.textContent = 'Escribe un correo electrónico válido.'; campo.focus(); return; }
+    if (!API_NOTICIAS.suscribir) { estado.textContent = 'La suscripción todavía no está disponible.'; return; }
+    enviando = true;
+    boton.disabled = true;
+    estado.textContent = 'Registrando tu correo…';
+    try {
+      const datos = await solicitarJSON(API_NOTICIAS.suscribir, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ correo })
+      });
+      estado.textContent = datos.mensaje || 'Revisa tu correo para confirmar la suscripción.';
+      formulario.reset();
+    } catch (error) {
+      estado.textContent = `No se pudo registrar la suscripción. ${error.message}`;
+    } finally {
+      enviando = false;
+      boton.disabled = false;
     }
   });
 }

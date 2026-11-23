@@ -8,6 +8,7 @@ Sitio estático de noticias universitarias integrado con AWS Lambda, Amazon S3 y
 - error.html: página de error del alojamiento estático.
 - lambdas/: código de las Lambda: agregar, obtener (lista y ?id=), prefirmar-noticia (cors v2), procesar-imagen (disparador S3) y el respaldo prefirmadas-original.
 - [INTEGRACION-S3.md](INTEGRACION-S3.md): despliegue y permisos del flujo actual.
+- [INTEGRACION-CLOUDFRONT.md](INTEGRACION-CLOUDFRONT.md): distribución CloudFront (HTTPS, fotos de noticias desde el bucket privado) en https://d27gjonf76v1aq.cloudfront.net.
 - [PENDIENTES-EQUIPO3.md](PENDIENTES-EQUIPO3.md): diagnóstico y trabajo pendiente de monitoreo y resiliencia.
 - [documentacion/MANUAL-IMPLEMENTACION.md](documentacion/MANUAL-IMPLEMENTACION.md): manual paso a paso en consola con capturas; ficha técnica, bitácora y matriz de pruebas en documentacion/.
 - pruebas/: eventos S3 de prueba para la procesadora.

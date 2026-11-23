@@ -1,0 +1,19 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CloudFrontLeeFotosDeNoticias",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+            },
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::mis-noticias-daniel-imagenes-906-2026/imagenes/*/foto.*",
+            "Condition": {
+                "ArnLike": {
+                    "AWS:SourceArn": "arn:aws:cloudfront::216728240051:distribution/E1HSACVXW4XMRE"
+                }
+            }
+        }
+    ]
+}

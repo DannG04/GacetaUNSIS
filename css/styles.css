@@ -766,6 +766,8 @@ html:not(.js) .encabezado__barra { flex-wrap: wrap; padding-block: 0.5rem; }
 .formulario-noticia__ayuda { color: var(--piedra); font-size: var(--t-chico); }
 .formulario-noticia button { justify-self: start; }
 button:disabled { opacity: .6; cursor: wait; }
-#noticias-estado, #publicacion-estado { margin-block: 1rem; }
+#noticias-estado, #publicacion-estado, #suscripcion-estado { margin-block: 1rem; }
+.formulario-suscripcion { display: grid; gap: 1rem; max-width: 32rem; }
+@media (min-width: 40rem) { .formulario-suscripcion { grid-template-columns: 1fr auto; align-items: end; } .formulario-suscripcion #suscripcion-estado { grid-column: 1 / -1; margin-block: 0; } }
 #recargar-noticias { margin-bottom: 1rem; }
 @media (min-width: 40rem) { .formulario-noticia__fila { grid-template-columns: 1fr 1fr; } }
