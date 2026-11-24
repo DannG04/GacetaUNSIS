@@ -11,11 +11,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=api-gateway-3">
+  <link rel="stylesheet" href="css/styles.css?v=modo-editor-1">
 
   <!-- Marca que JavaScript está disponible (el menú móvil solo se oculta si hay JS) -->
   <script>document.documentElement.classList.add('js');</script>
-  <script src="js/main.js?v=api-gateway-3" defer></script>
+  <script src="js/main.js?v=modo-editor-1" defer></script>
 </head>
 <body>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
@@ -33,6 +33,30 @@
         </a>
       </h1>
 
+      <!-- Acceso de editores (Amazon Cognito). Ver INTEGRACION-API-GATEWAY.md, fase 5. -->
+      <div class="cuenta-editor">
+        <button class="acceso-boton" type="button" id="iniciar-sesion" aria-label="Acceso para editores" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <span class="acceso-boton__texto">Editores</span>
+        </button>
+        <a class="acceso-boton" id="ir-sitio-seguro" href="https://d27gjonf76v1aq.cloudfront.net/" aria-label="Acceso para editores (sitio seguro)" title="Acceso para editores (sitio seguro)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <span class="acceso-boton__texto">Editores</span>
+        </a>
+        <div class="cuenta" id="cuenta-activa" hidden>
+          <button class="cuenta__chip" type="button" id="cuenta-boton" aria-expanded="false" aria-controls="cuenta-menu">
+            <span class="cuenta__inicial" id="cuenta-inicial" aria-hidden="true">E</span>
+            <span class="cuenta__rol">Editor</span>
+          </button>
+          <div class="cuenta__menu" id="cuenta-menu" hidden>
+            <p class="cuenta__correo" id="cuenta-correo"></p>
+            <p class="cuenta__vence" id="cuenta-vence"></p>
+            <a class="cuenta__opcion" href="#crear-noticia">Crear noticia</a>
+            <button class="cuenta__opcion" type="button" id="cerrar-sesion">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+
       <button class="menu-boton" type="button" aria-expanded="false" aria-controls="menu-principal">
         <span class="menu-boton__icono" aria-hidden="true"></span>
         <span class="menu-boton__texto">Menú</span>
@@ -42,7 +66,7 @@
         <ul class="navegacion__lista">
           <li><a class="navegacion__enlace" href="#noticias">Noticias</a></li>
           <li><a class="navegacion__enlace" href="#suscribirse">Suscribirse</a></li>
-          <li><a class="navegacion__enlace" href="#crear-noticia">Crear noticia</a></li>
+          <li class="solo-editor"><a class="navegacion__enlace" href="#crear-noticia">Crear noticia</a></li>
           <li><a class="navegacion__enlace" href="#unsis">La UNSIS</a></li>
           <li><a class="navegacion__enlace" href="#egresados">Egresados</a></li>
           <li><a class="navegacion__enlace" href="#agenda">Agenda</a></li>
@@ -50,7 +74,25 @@
         </ul>
       </nav>
     </div>
+
+    <!-- Franja del modo editor: solo se ve con sesión de editor -->
+    <div class="franja-editor solo-editor">
+      <div class="contenedor franja-editor__barra">
+        <span class="franja-editor__sello">Modo editor</span>
+        <span class="franja-editor__texto">Lo que publiques aparece en el sitio y se avisa a los suscriptores.</span>
+        <a class="franja-editor__enlace" href="#crear-noticia">Crear noticia</a>
+      </div>
+    </div>
   </header>
+
+  <!-- Avisos de la sesión de editor (vencimiento, errores de inicio de sesión) -->
+  <div class="aviso-editor" id="aviso-editor" role="status" aria-live="polite" hidden>
+    <p class="aviso-editor__texto" id="aviso-editor-texto"></p>
+    <div class="aviso-editor__acciones">
+      <button class="boton" type="button" id="aviso-iniciar">Iniciar sesión</button>
+      <button class="boton boton--contorno" type="button" id="aviso-cerrar">Cerrar</button>
+    </div>
+  </div>
 
   <main id="contenido" tabindex="-1">
 
@@ -97,16 +139,10 @@
       </div>
     </section>
 
-    <section class="seccion seccion--cal" id="crear-noticia" aria-labelledby="crear-titulo">
+    <section class="seccion seccion--cal solo-editor" id="crear-noticia" aria-labelledby="crear-titulo">
       <div class="contenedor">
         <h2 class="seccion__titulo" id="crear-titulo">Crear noticia</h2>
         <p>Escribe tu noticia y selecciona una imagen opcional. Los campos con * son obligatorios.</p>
-        <!-- Sesión del editor (Amazon Cognito). Ver INTEGRACION-API-GATEWAY.md, fase 5. -->
-        <div class="sesion-editor" id="sesion-editor">
-          <p id="sesion-estado" role="status" aria-live="polite">Solo el editor puede publicar.</p>
-          <button class="boton" type="button" id="iniciar-sesion" hidden>Iniciar sesión como editor</button>
-          <button class="boton boton--contorno" type="button" id="cerrar-sesion" hidden>Cerrar sesión</button>
-        </div>
         <form id="formulario-noticia" class="formulario-noticia">
           <fieldset id="campos-noticia">
             <legend>Datos de la noticia</legend>

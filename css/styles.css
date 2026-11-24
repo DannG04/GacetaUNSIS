@@ -772,8 +772,91 @@ button:disabled { opacity: .6; cursor: wait; }
 #recargar-noticias { margin-bottom: 1rem; }
 @media (min-width: 40rem) { .formulario-noticia__fila { grid-template-columns: 1fr 1fr; } }
 
-/* Sesión del editor (Cognito) */
-.sesion-editor { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1.5rem; max-width: 48rem; }
-.sesion-editor p { flex-basis: 100%; margin: 0; }
-.sesion-editor a { overflow-wrap: anywhere; }
-.sesion-editor .boton[hidden] { display: none; }
+/* ==========================================================================
+   Acceso y modo editor (Cognito)
+   ========================================================================== */
+[hidden] { display: none !important; }  /* .boton y otros fijan display: el atributo hidden debe ganar */
+html:not(.modo-editor) .solo-editor { display: none !important; }
+
+/* Botón «Editores» del encabezado: discreto, para no competir con la navegación de lectores */
+.cuenta-editor { position: relative; display: flex; align-items: center; margin-left: auto; }
+.acceso-boton {
+  display: inline-flex; align-items: center; gap: .45rem;
+  min-height: 2.75rem; padding: .45rem .7rem;
+  border: 1px solid var(--linea); border-radius: 999px;
+  background: var(--blanco); color: var(--piedra);
+  font: 600 var(--t-chico) var(--fuente-titulos); text-decoration: none; cursor: pointer;
+  transition: color var(--transicion), border-color var(--transicion);
+}
+.acceso-boton:hover { color: var(--rojo); border-color: var(--rojo); }
+.acceso-boton svg { width: 1.05rem; height: 1.05rem; flex: none; }
+.acceso-boton__texto { display: none; }
+
+/* Cuenta del editor: chip con inicial y menú desplegable */
+.cuenta { position: relative; }
+.cuenta__chip {
+  display: inline-flex; align-items: center; gap: .5rem;
+  min-height: 2.75rem; padding: .3rem .75rem .3rem .3rem;
+  border: 1px solid var(--rojo); border-radius: 999px;
+  background: var(--rojo-tenue); color: var(--rojo-profundo);
+  font: 700 var(--t-chico) var(--fuente-titulos); cursor: pointer;
+}
+.cuenta__chip::after { content: ""; width: .45rem; height: .45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.cuenta__chip[aria-expanded="true"]::after { transform: translateY(2px) rotate(-135deg); }
+.cuenta__inicial {
+  display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+  background: var(--rojo); color: var(--blanco); font-weight: 800;
+}
+.cuenta__rol { display: none; }
+.cuenta__menu {
+  position: absolute; right: 0; top: calc(100% + .5rem); z-index: 60;
+  display: grid; width: min(18rem, calc(100vw - 2 * var(--margen-lateral)));
+  padding: .5rem 0; background: var(--blanco);
+  border: 1px solid var(--linea); border-top: 4px solid var(--maiz);
+  box-shadow: 0 18px 36px -20px rgb(30 25 24 / .5);
+}
+.cuenta__correo { margin: 0; padding: .5rem 1rem 0; font: 700 var(--t-chico) var(--fuente-titulos); color: var(--tinta); overflow-wrap: anywhere; }
+.cuenta__vence { margin: 0; padding: .15rem 1rem .6rem; font-size: var(--t-mini); color: var(--piedra); border-bottom: 1px solid var(--linea); }
+.cuenta__opcion {
+  display: block; width: 100%; padding: .7rem 1rem; border: 0; background: none; text-align: left;
+  font: 600 var(--t-ui) var(--fuente-titulos); color: var(--tinta); text-decoration: none; cursor: pointer;
+}
+.cuenta__opcion:hover { background: var(--cal); color: var(--rojo); }
+
+/* Modo editor: cornisa en maíz y franja fija bajo el encabezado */
+.modo-editor { scroll-padding-top: calc(var(--alto-encabezado) + 3.5rem); }
+.modo-editor .encabezado { border-top-color: var(--maiz); }
+.franja-editor { background: var(--rojo-profundo); color: var(--blanco); }
+.franja-editor__barra { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem 1rem; padding-block: .5rem; font: 500 var(--t-chico) var(--fuente-titulos); }
+.franja-editor__sello {
+  padding: .15rem .55rem; border-radius: var(--radio);
+  background: var(--maiz); color: var(--tinta);
+  font-weight: 800; font-size: var(--t-mini); letter-spacing: .08em; text-transform: uppercase;
+}
+.franja-editor__texto { color: var(--sobre-rojo-tenue); display: none; }
+.franja-editor__enlace { margin-left: auto; color: var(--blanco); font-weight: 700; }
+.franja-editor__enlace:hover { color: var(--maiz); }
+
+/* Aviso flotante (sesión vencida, errores de inicio de sesión) */
+.aviso-editor {
+  position: fixed; z-index: 70; right: var(--margen-lateral); bottom: var(--margen-lateral);
+  display: grid; gap: .75rem; width: min(24rem, calc(100vw - 2 * var(--margen-lateral)));
+  padding: 1rem 1.15rem; background: var(--blanco);
+  border: 1px solid var(--linea); border-left: 5px solid var(--aviso);
+  box-shadow: 0 18px 40px -18px rgb(30 25 24 / .55);
+}
+.aviso-editor__texto { margin: 0; color: var(--tinta); font-size: var(--t-chico); }
+.aviso-editor__acciones { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* En celular el chip no está en el borde (a su derecha va «Menú»): el menú se ancla a la ventana */
+@media (max-width: 47.99rem) {
+  .cuenta__menu { position: fixed; top: calc(var(--alto-encabezado) + 4px + .35rem); right: var(--margen-lateral); }
+}
+@media (min-width: 40rem) {
+  .acceso-boton__texto, .cuenta__rol { display: inline; }
+  .franja-editor__texto { display: inline; }
+}
+@media (min-width: 48rem) {
+  .navegacion { margin-left: auto; }
+  .cuenta-editor { order: 3; margin-left: 0; }
+}

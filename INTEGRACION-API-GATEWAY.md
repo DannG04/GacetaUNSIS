@@ -263,12 +263,22 @@ Hecha el 2026-11-24. Publicar (`POST /api/noticias` y `POST /api/subidas`) exige
 | CORS de la API | Se agregó el encabezado `authorization` |
 | Editor | Cuenta del responsable del proyecto, creada con `admin-create-user` (invitación con contraseña temporal por correo; al primer inicio de sesión elige la suya) |
 
-**En el sitio** (`js/main.js`, sección «Crear noticia»):
-- **Inicio de sesión:** el botón «Iniciar sesión como editor» genera el verificador y el reto PKCE y lleva a la página de Cognito.
-- **Al volver:** el sitio cambia el código por los tokens en `/oauth2/token`, guarda el token de acceso **solo en `sessionStorage` de esa pestaña** y limpia la dirección.
-- **Formulario:** está deshabilitado sin sesión. Al publicar manda `Authorization: Bearer <token>`.
-- **Errores y salida:** un 401 borra la sesión y pide iniciar sesión de nuevo. «Cerrar sesión» borra el token y cierra la sesión de Cognito.
-- **Sitio S3 (HTTP):** Cognito no admite una dirección de retorno HTTP, así que ese sitio muestra un enlace al sitio de CloudFront para publicar.
+**En el sitio** (`index.html`, `js/main.js`, `css/styles.css`):
+
+- **Lector (sin sesión):** el sitio no muestra nada de edición. No aparece «Crear noticia» ni en el menú ni en la página (clase `solo-editor`). El encabezado solo tiene, a la derecha, un botón discreto «Editores» con candado (en celular, solo el candado).
+- **Inicio de sesión:** «Editores» genera el verificador y el reto PKCE y lleva a la página de Cognito. Al volver, el sitio cambia el código por los tokens en `/oauth2/token`, guarda el token de acceso **solo en `sessionStorage` de esa pestaña**, limpia la dirección y baja al formulario.
+- **Modo editor (con sesión):**
+  - `<html>` lleva la clase `modo-editor`, y la cornisa del encabezado pasa de rojo a maíz.
+  - Bajo el encabezado aparece una franja fija «MODO EDITOR» con el enlace «Crear noticia».
+  - En el menú aparece «Crear noticia» y se muestra la sección con el formulario.
+  - En lugar de «Editores» aparece un chip con la inicial del editor. Su menú muestra el correo, la hora de vencimiento, «Crear noticia» y «Cerrar sesión».
+  - Al publicar se manda `Authorization: Bearer <token>`.
+- **Vencimiento:**
+  - Un temporizador saca al sitio del modo editor cuando vence la sesión. Un 401 de la API hace lo mismo.
+  - En ambos casos aparece un aviso flotante con «Iniciar sesión».
+  - Lo escrito (título, fecha, categoría, detalle y descripción de la imagen) se guarda en `sessionStorage` al iniciar sesión y se restaura al volver. La imagen hay que volver a elegirla: el navegador no permite restaurar un campo de archivo.
+- **Cerrar sesión:** borra el token y cierra la sesión de Cognito.
+- **Sitio S3 (HTTP):** Cognito no admite una dirección de retorno HTTP, así que ahí «Editores» es un enlace al sitio de CloudFront.
 
 **Agregar otro editor:** Cognito › `gaceta-editores` › Usuarios › Crear usuario (invitación por correo, correo marcado como verificado). O, desde CloudShell:
 

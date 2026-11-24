@@ -776,9 +776,10 @@ const COGNITO = Object.freeze({
   dominio: 'https://gaceta-unsis-editores.auth.us-east-2.amazoncognito.com',
   clienteId: '1tb60jodoksecg5tfki9b1kb4f'
 });
-const SITIO_SEGURO = 'https://d27gjonf76v1aq.cloudfront.net/';
 const CLAVE_SESION = 'gaceta-sesion-editor';
 const CLAVE_PKCE = 'gaceta-pkce';
+const CLAVE_BORRADOR = 'gaceta-borrador';
+const CAMPOS_BORRADOR = ['titulo', 'fecha', 'categoria', 'detalle', 'alt'];
 
 function leerAlmacen(clave) {
   try { return JSON.parse(sessionStorage.getItem(clave) || 'null'); } catch { return null; }
@@ -796,7 +797,25 @@ const puedeIniciarSesion = () => window.isSecureContext && !!globalThis.crypto?.
   && (location.hostname.endsWith('.cloudfront.net') || location.hostname === 'localhost');
 const base64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+// Guarda lo escrito antes de ir a Cognito (p. ej., si la sesión venció a media noticia).
+// La imagen no se puede conservar: el navegador no permite restaurar un campo de archivo.
+function guardarBorrador() {
+  const campos = document.getElementById('formulario-noticia')?.elements;
+  if (!campos) return;
+  const borrador = Object.fromEntries(CAMPOS_BORRADOR.map(nombre => [nombre, campos[nombre].value]));
+  if (borrador.titulo.trim() || borrador.detalle.trim()) guardarAlmacen(CLAVE_BORRADOR, borrador);
+}
+function restaurarBorrador() {
+  const borrador = leerAlmacen(CLAVE_BORRADOR);
+  const campos = document.getElementById('formulario-noticia')?.elements;
+  guardarAlmacen(CLAVE_BORRADOR, null);
+  if (!borrador || !campos) return false;
+  for (const nombre of CAMPOS_BORRADOR) if (typeof borrador[nombre] === 'string' && borrador[nombre]) campos[nombre].value = borrador[nombre];
+  return true;
+}
+
 async function iniciarSesionEditor() {
+  guardarBorrador();
   const verificador = base64url(crypto.getRandomValues(new Uint8Array(32)));
   const estado = base64url(crypto.getRandomValues(new Uint8Array(16)));
   const reto = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verificador)));
@@ -847,42 +866,83 @@ async function completarInicioSesion() {
   }
 }
 
-function actualizarSesionEditor(mensaje = '') {
-  const estado = document.getElementById('sesion-estado');
-  const campos = document.getElementById('campos-noticia');
-  if (!estado || !campos) return;
-  const iniciar = document.getElementById('iniciar-sesion');
-  const cerrar = document.getElementById('cerrar-sesion');
-  const sesion = leerSesionEditor();
-  if (!puedeIniciarSesion()) {
-    estado.innerHTML = '';
-    estado.append('Para publicar, entra al sitio seguro: ');
-    const enlace = Object.assign(document.createElement('a'), { href: `${SITIO_SEGURO}#crear-noticia`, textContent: SITIO_SEGURO });
-    estado.append(enlace);
-    iniciar.hidden = true; cerrar.hidden = true; campos.disabled = true;
-    return;
+// Aviso flotante de la sesión de editor. conBoton muestra «Iniciar sesión».
+function mostrarAvisoEditor(texto, conBoton = false) {
+  const aviso = document.getElementById('aviso-editor');
+  if (!aviso) return;
+  document.getElementById('aviso-editor-texto').textContent = texto;
+  document.getElementById('aviso-iniciar').hidden = !conBoton;
+  aviso.hidden = !texto;
+}
+
+function abrirMenuCuenta(abrir) {
+  const boton = document.getElementById('cuenta-boton');
+  boton.setAttribute('aria-expanded', String(abrir));
+  document.getElementById('cuenta-menu').hidden = !abrir;
+}
+
+// Modo editor: con sesión, <html> lleva la clase modo-editor (franja, «Crear noticia» y menú de cuenta);
+// sin sesión el sitio se ve como para cualquier lector y el encabezado muestra «Editores».
+// mensaje: aviso que se muestra al usuario (p. ej., sesión vencida); '' o undefined no muestra nada nuevo.
+let temporizadorSesion;
+function actualizarSesionEditor(mensaje) {
+  const cuenta = document.getElementById('cuenta-activa');
+  if (!cuenta) return;
+  const seguro = puedeIniciarSesion();
+  const sesion = seguro ? leerSesionEditor() : null;
+  document.documentElement.classList.toggle('modo-editor', !!sesion);
+  document.getElementById('iniciar-sesion').hidden = !seguro || !!sesion;
+  document.getElementById('ir-sitio-seguro').hidden = seguro;
+  cuenta.hidden = !sesion;
+  document.getElementById('campos-noticia').disabled = !sesion;
+  clearTimeout(temporizadorSesion);
+  if (sesion) {
+    const hora = new Date(sesion.expira).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }).replace(/\.$/, '');
+    document.getElementById('cuenta-inicial').textContent = (sesion.correo || 'E').charAt(0).toUpperCase();
+    document.getElementById('cuenta-correo').textContent = sesion.correo || 'Editor';
+    document.getElementById('cuenta-vence').textContent = `La sesión vence a las ${hora}.`;
+    document.getElementById('cuenta-boton').setAttribute('aria-label', `Cuenta de editor${sesion.correo ? `: ${sesion.correo}` : ''}`);
+    // leerSesionEditor deja de aceptarla 30 s antes de expirar: en ese momento se sale del modo editor.
+    temporizadorSesion = setTimeout(() => actualizarSesionEditor(AVISO_SESION_VENCIDA), Math.max(0, sesion.expira - 30000 - Date.now()));
+  } else {
+    abrirMenuCuenta(false);
   }
-  estado.textContent = mensaje || (sesion
-    ? `Sesión de editor iniciada${sesion.correo ? ` como ${sesion.correo}` : ''}. Vence a las ${new Date(sesion.expira).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }).replace(/\.$/, '')}.`
-    : 'Solo el editor puede publicar. Inicia sesión para continuar.');
-  iniciar.hidden = !!sesion; cerrar.hidden = !sesion; campos.disabled = !sesion;
+  if (mensaje) mostrarAvisoEditor(mensaje, seguro && !sesion);
+  else if (sesion) mostrarAvisoEditor('');
 }
 
 async function prepararSesionEditor() {
-  if (!document.getElementById('sesion-editor')) return;
-  document.getElementById('iniciar-sesion').addEventListener('click', () => iniciarSesionEditor().catch(error => {
-    console.error(error); actualizarSesionEditor('No se pudo abrir el inicio de sesión.');
-  }));
+  if (!document.getElementById('cuenta-activa')) return;
+  const iniciar = () => iniciarSesionEditor().catch(error => {
+    console.error(error); mostrarAvisoEditor('No se pudo abrir el inicio de sesión. Vuelve a intentarlo.', true);
+  });
+  document.getElementById('iniciar-sesion').addEventListener('click', iniciar);
+  document.getElementById('aviso-iniciar').addEventListener('click', iniciar);
+  document.getElementById('aviso-cerrar').addEventListener('click', () => mostrarAvisoEditor(''));
   document.getElementById('cerrar-sesion').addEventListener('click', cerrarSesionEditor);
+  const botonCuenta = document.getElementById('cuenta-boton');
+  botonCuenta.addEventListener('click', () => abrirMenuCuenta(botonCuenta.getAttribute('aria-expanded') !== 'true'));
+  document.getElementById('cuenta-menu').addEventListener('click', evento => { if (evento.target.closest('a')) abrirMenuCuenta(false); });
+  document.addEventListener('click', evento => { if (!evento.target.closest('.cuenta')) abrirMenuCuenta(false); });
+  document.addEventListener('keydown', evento => {
+    if (evento.key === 'Escape' && botonCuenta.getAttribute('aria-expanded') === 'true') { abrirMenuCuenta(false); botonCuenta.focus(); }
+  });
+
   actualizarSesionEditor();
+  const volvioDeCognito = new URLSearchParams(location.search).has('code') || new URLSearchParams(location.search).has('error');
   const mensaje = puedeIniciarSesion() ? await completarInicioSesion() : '';
+  const conBorrador = leerSesionEditor() ? restaurarBorrador() : false;
   actualizarSesionEditor(mensaje);
+  if (conBorrador) document.getElementById('publicacion-estado').textContent = 'Recuperamos lo que habías escrito. Si tenía imagen, vuelve a elegirla.';
+  // La sección estaba oculta al cargar la página: al volver de Cognito se lleva al editor al formulario.
+  if (volvioDeCognito && leerSesionEditor()) document.getElementById('crear-noticia').scrollIntoView();
 }
 
+const AVISO_SESION_VENCIDA = 'Tu sesión de editor venció. Vuelve a iniciar sesión: lo que hayas escrito se conservará (la imagen tendrás que elegirla otra vez).';
 // Encabezados de las rutas del editor. Sin sesión vigente lanza un error que el formulario muestra.
 function encabezadosEditor() {
   const sesion = leerSesionEditor();
-  if (!sesion) { actualizarSesionEditor(); throw new Error('Tu sesión de editor no está activa. Inicia sesión para publicar.'); }
+  if (!sesion) { actualizarSesionEditor(AVISO_SESION_VENCIDA); throw new Error(AVISO_SESION_VENCIDA); }
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion.token}` };
 }
 
@@ -905,8 +965,8 @@ async function solicitarJSON(url, opciones = {}, destino = 'obtener') {
   }
   if (respuesta.status === 401) {
     guardarAlmacen(CLAVE_SESION, null);
-    actualizarSesionEditor();
-    throw new Error('Tu sesión de editor venció o no es válida. Inicia sesión de nuevo.');
+    actualizarSesionEditor(AVISO_SESION_VENCIDA);
+    throw new Error(AVISO_SESION_VENCIDA);
   }
   const texto = await respuesta.text();
   let datos;
