@@ -1,0 +1,26 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CrearGrupoDeLogs",
+      "Effect": "Allow",
+      "Action": "logs:CreateLogGroup",
+      "Resource": "arn:aws:logs:us-east-2:216728240051:*"
+    },
+    {
+      "Sid": "EscribirLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-2:216728240051:log-group:/aws/lambda/suscribir-noticias:*"
+    },
+    {
+      "Sid": "SuscribirCorreos",
+      "Effect": "Allow",
+      "Action": "sns:Subscribe",
+      "Resource": "arn:aws:sns:us-east-2:216728240051:gaceta-noticias"
+    }
+  ]
+}

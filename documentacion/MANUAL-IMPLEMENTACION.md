@@ -331,6 +331,6 @@ Si el sitio sigue en uso, antes hay que restaurar `lambdas/prefirmadas-original.
 **Pendientes opcionales:**
 
 - DLQ o destino SQS para fallos.
-- Notificación SNS de la alarma.
+- ~~Notificación SNS de la alarma.~~ Implementada el 20/11/2026: ver `INTEGRACION-SNS.md`.
 - Regla de ciclo de vida que caduque `pendientes/` a los 7 días.
 - Retirar el modo `?file=` y la Lambda `agregarNoticia` para imágenes cuando ya no queden páginas antiguas en caché.
