@@ -13,8 +13,9 @@ Desde el 2026-11-23, El Unsito se sirve por HTTPS desde una distribución de Clo
 
 | Orden | Ruta | Origen | Caché |
 |---|---|---|---|
-| 0 | `/imagenes/*/foto.*` | `mis-noticias-daniel-imagenes-906-2026` (privado) | CachingOptimized |
-| 1 | Predeterminada (`*`) | `906-unsis-daniel` (endpoint REST, no el de sitio web) | CachingOptimized |
+| 0 | `/api/*` (desde 2026-11-24) | `gaceta-api` → `2ylmuzunr2.execute-api.us-east-2.amazonaws.com` | CachingDisabled + AllViewerExceptHostHeader |
+| 1 | `/imagenes/*/foto.*` | `mis-noticias-daniel-imagenes-906-2026` (privado) | CachingOptimized |
+| 2 | Predeterminada (`*`) | `906-unsis-daniel` (endpoint REST, no el de sitio web) | CachingOptimized |
 
 - La ruta `/imagenes/*/foto.*` solo coincide con las fotos de noticias (`imagenes/<uuid>/foto.jpg|png|webp`). Las imágenes propias del sitio (`imagenes/logo-unsis.webp`, `imagenes/correo/logo.png`…) siguen saliendo del bucket del sitio.
 - `pendientes/` no se puede leer por CloudFront: no coincide con ninguna ruta del bucket de imágenes y la política del bucket solo permite `imagenes/*/foto.*`.
@@ -60,5 +61,7 @@ Las fotos de noticias no necesitan invalidación, porque cada una tiene un UUID 
 ## Pendiente (requiere decisión)
 
 - **Cerrar el sitio S3 público:** quitar `PublicReadGetObject` y el alojamiento web estático de `906-unsis-daniel`. Así, el contenido solo se sirve por CloudFront. El enlace `http://…s3-website…` dejaría de funcionar, igual que las fotos de correos ya enviados que apuntan a `…s3.us-east-2.amazonaws.com/correo/…`.
-- **Quitar el origen S3 del CORS:** una vez cerrado el sitio S3, quitar `http://906-unsis-daniel.s3-website…` del CORS de las URL de función.
+- **Quitar el origen S3 del CORS:** una vez cerrado el sitio S3, quitar `http://906-unsis-daniel.s3-website…` del CORS de la API `gaceta-api` (las URL de función ya están bloqueadas).
+
+> **2026-11-24:** la distribución tiene un segundo comportamiento, `/api/*` → origen `gaceta-api` (API Gateway), sin caché. Ver [INTEGRACION-API-GATEWAY.md](INTEGRACION-API-GATEWAY.md).
 - **Alarma de errores 5xx:** las métricas de CloudFront están en us-east-1. Una alarma de 5xx necesitaría allí su propio tema SNS.

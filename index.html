@@ -11,11 +11,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=api-gateway-3">
 
   <!-- Marca que JavaScript está disponible (el menú móvil solo se oculta si hay JS) -->
   <script>document.documentElement.classList.add('js');</script>
-  <script src="js/main.js?v=noticias-sns-1" defer></script>
+  <script src="js/main.js?v=api-gateway-3" defer></script>
 </head>
 <body>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
@@ -101,6 +101,12 @@
       <div class="contenedor">
         <h2 class="seccion__titulo" id="crear-titulo">Crear noticia</h2>
         <p>Escribe tu noticia y selecciona una imagen opcional. Los campos con * son obligatorios.</p>
+        <!-- Sesión del editor (Amazon Cognito). Ver INTEGRACION-API-GATEWAY.md, fase 5. -->
+        <div class="sesion-editor" id="sesion-editor">
+          <p id="sesion-estado" role="status" aria-live="polite">Solo el editor puede publicar.</p>
+          <button class="boton" type="button" id="iniciar-sesion" hidden>Iniciar sesión como editor</button>
+          <button class="boton boton--contorno" type="button" id="cerrar-sesion" hidden>Cerrar sesión</button>
+        </div>
         <form id="formulario-noticia" class="formulario-noticia">
           <fieldset id="campos-noticia">
             <legend>Datos de la noticia</legend>

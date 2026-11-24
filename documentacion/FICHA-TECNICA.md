@@ -8,9 +8,11 @@ Valores obtenidos de la consola el 2026-10-27. Cuenta 216728240051 (plan gratuit
 | Bucket sitio | 906-unsis-daniel | http://906-unsis-daniel.s3-website.us-east-2.amazonaws.com | Hosting estático |
 | Bucket imágenes | mis-noticias-daniel-imagenes-906-2026 | arn:aws:s3:::mis-noticias-daniel-imagenes-906-2026 | Privado; prefijos imagenes/ y pendientes/ |
 | Tabla | noticias | arn:aws:dynamodb:us-east-2:216728240051:table/noticias | Clave id (String) |
-| Lambda prefirmadas | cors | arn:aws:lambda:us-east-2:216728240051:function:cors · https://krveeq3gnhqdy3r3kuyfhubrim0olhaw.lambda-url.us-east-2.on.aws/ | |
-| Lambda agregar | agregarNoticia | https://ufepu6szpto7mzedlr4isb3uiu0rzubq.lambda-url.us-east-2.on.aws/ | Solo noticias sin imagen |
-| Lambda obtener | obtenerNoticias | https://kewecagxxd44porzgzstv37g5q0nsays.lambda-url.us-east-2.on.aws/ | Lista y ?id= |
+| Lambda prefirmadas | cors | arn:aws:lambda:us-east-2:216728240051:function:cors · `POST /api/subidas` | URL de función bloqueada (AWS_IAM) desde 2026-11-24 |
+| Lambda agregar | agregarNoticia | `POST /api/noticias` | Solo noticias sin imagen; URL de función bloqueada (AWS_IAM) |
+| Lambda obtener | obtenerNoticias | `GET /api/noticias` | Lista y ?id=; URL de función bloqueada (AWS_IAM) |
+| API Gateway | gaceta-api (HTTP API, ID 2ylmuzunr2) | https://d27gjonf76v1aq.cloudfront.net/api · https://2ylmuzunr2.execute-api.us-east-2.amazonaws.com/api | Desde 2026-11-23; ver INTEGRACION-API-GATEWAY.md |
+| Cognito | gaceta-editores (us-east-2_7l3XrSXEJ) · cliente gaceta-sitio | https://gaceta-unsis-editores.auth.us-east-2.amazoncognito.com | Desde 2026-11-24: inicio de sesión del editor; autorizador JWT en POST /api/noticias y /api/subidas |
 | Lambda procesadora | procesar-imagen-noticia | arn:aws:lambda:us-east-2:216728240051:function:procesar-imagen-noticia | procesar-imagen-noticia-rol (mínimo privilegio, desde el 28 oct.; antes PowerUserRole) · Node.js 24.x · 30 s · disparador S3 imagenes/ · 2 reintentos, 1 h |
 | Log group | /aws/lambda/procesar-imagen-noticia | | Retención 3 días |
 | Alarma | gaceta-procesadora-errores | arn:aws:cloudwatch:us-east-2:216728240051:alarm:gaceta-procesadora-errores | Errors Suma ≥ 1 · 1 min · 1/1 · datos faltantes = correctos · sin acciones |

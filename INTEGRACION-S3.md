@@ -18,6 +18,8 @@ Copia lambdas/obtener-noticias.mjs en el handler de obtener y pulsa Deploy/Imple
 
 ## CORS en las URL de función
 
+> **Desde el 2026-11-24** el sitio llama a las Lambdas por API Gateway y las URL de función están bloqueadas (AWS_IAM). El CORS vive en la API `gaceta-api`; ver [INTEGRACION-API-GATEWAY.md](INTEGRACION-API-GATEWAY.md). Esta sección queda como referencia histórica.
+
 Administra CORS únicamente en Configuración > URL de función. Usa como origen http://906-unsis-daniel.s3-website.us-east-2.amazonaws.com. Permite GET en obtener, POST y el encabezado content-type en agregar, y POST en prefirmadas. Conserva CORS PUT y Content-Type del bucket de imágenes, cuya subida ya funciona.
 
 No subas los archivos de lambdas al bucket del sitio: se copian en las funciones correspondientes en AWS. No se desplegó ni probó una publicación real desde este entorno.

@@ -6,12 +6,14 @@ Sitio estático de noticias universitarias integrado con AWS Lambda, Amazon S3 y
 
 - index.html, css/, js/ e imagenes/: sitio web.
 - error.html: página de error del alojamiento estático.
-- lambdas/: código de las Lambda: agregar, obtener (lista y ?id=), prefirmar-noticia (cors v2), procesar-imagen (disparador S3) y el respaldo prefirmadas-original.
+- lambdas/: código de las Lambda: agregar, obtener (lista y ?id=), prefirmar-noticia (cors v2), procesar-imagen (disparador S3), suscribir-noticias y enviar-correos/ (SNS) y el respaldo prefirmadas-original.
 - [INTEGRACION-S3.md](INTEGRACION-S3.md): despliegue y permisos del flujo actual.
+- [INTEGRACION-SNS.md](INTEGRACION-SNS.md): suscripción de lectores por correo y alertas al editor con Amazon SNS.
 - [INTEGRACION-CLOUDFRONT.md](INTEGRACION-CLOUDFRONT.md): distribución CloudFront (HTTPS, fotos de noticias desde el bucket privado) en https://d27gjonf76v1aq.cloudfront.net.
+- [INTEGRACION-API-GATEWAY.md](INTEGRACION-API-GATEWAY.md): HTTP API `gaceta-api` para las Lambdas del sitio, servida por CloudFront en `/api/*`. Publicar exige iniciar sesión como editor (Amazon Cognito). Las URL de función quedaron bloqueadas.
 - [PENDIENTES-EQUIPO3.md](PENDIENTES-EQUIPO3.md): diagnóstico y trabajo pendiente de monitoreo y resiliencia.
 - [documentacion/MANUAL-IMPLEMENTACION.md](documentacion/MANUAL-IMPLEMENTACION.md): manual paso a paso en consola con capturas; ficha técnica, bitácora y matriz de pruebas en documentacion/.
-- pruebas/: eventos S3 de prueba para la procesadora.
+- pruebas/: eventos S3 de prueba para la procesadora y `api-gateway.sh` (comprobación de la API).
 
 ## Vista local
 

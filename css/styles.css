@@ -771,3 +771,9 @@ button:disabled { opacity: .6; cursor: wait; }
 @media (min-width: 40rem) { .formulario-suscripcion { grid-template-columns: 1fr auto; align-items: end; } .formulario-suscripcion #suscripcion-estado { grid-column: 1 / -1; margin-block: 0; } }
 #recargar-noticias { margin-bottom: 1rem; }
 @media (min-width: 40rem) { .formulario-noticia__fila { grid-template-columns: 1fr 1fr; } }
+
+/* Sesión del editor (Cognito) */
+.sesion-editor { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1.5rem; max-width: 48rem; }
+.sesion-editor p { flex-basis: 100%; margin: 0; }
+.sesion-editor a { overflow-wrap: anywhere; }
+.sesion-editor .boton[hidden] { display: none; }

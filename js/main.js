@@ -750,29 +750,163 @@ document.addEventListener('DOMContentLoaded', () => {
   prepararMenu();
   prepararSeccionActiva();
   prepararLector();
+  prepararSesionEditor();
   prepararPublicacion();
   prepararSuscripcion();
   document.getElementById('recargar-noticias')?.addEventListener('click', cargarNoticias);
   if (document.getElementById('lista-noticias')) cargarNoticias();
 });
 
-/* Integración AWS. Consulta INTEGRACION-S3.md para el contrato de las Lambda. */
+/* Integración AWS: HTTP API gaceta-api de API Gateway (ver INTEGRACION-API-GATEWAY.md).
+   Desde CloudFront la API está en el mismo dominio (/api/*): sin CORS. El sitio S3 y las pruebas
+   locales la llaman directamente en execute-api. Las URL de función de Lambda se retiraron (fase 4). */
+const API_DIRECTA = 'https://2ylmuzunr2.execute-api.us-east-2.amazonaws.com/api';
+const API_BASE = location.hostname.endsWith('.cloudfront.net') ? '/api' : API_DIRECTA;
 const API_NOTICIAS = Object.freeze({
-  obtener: 'https://kewecagxxd44porzgzstv37g5q0nsays.lambda-url.us-east-2.on.aws/',
-  agregar: 'https://ufepu6szpto7mzedlr4isb3uiu0rzubq.lambda-url.us-east-2.on.aws/',
-  prefirmar: 'https://krveeq3gnhqdy3r3kuyfhubrim0olhaw.lambda-url.us-east-2.on.aws/',
-  // URL de función de suscribir-noticias (SNS). Ver INTEGRACION-SNS.md.
-  suscribir: 'https://jneqwan7m2p3sjely2talw4rvm0infnt.lambda-url.us-east-2.on.aws/'
+  obtener: `${API_BASE}/noticias`,
+  agregar: `${API_BASE}/noticias`,
+  prefirmar: `${API_BASE}/subidas`,
+  suscribir: `${API_BASE}/suscripciones`
+});
+/* Sesión del editor con Amazon Cognito (fase 5): flujo de código de autorización con PKCE.
+   POST /api/noticias y POST /api/subidas exigen el token de acceso (autorizador JWT de la API).
+   El token vive solo en sessionStorage de esta pestaña. Cognito solo acepta HTTPS (o localhost)
+   como dirección de retorno: desde el sitio S3 por HTTP no se puede iniciar sesión. */
+const COGNITO = Object.freeze({
+  dominio: 'https://gaceta-unsis-editores.auth.us-east-2.amazoncognito.com',
+  clienteId: '1tb60jodoksecg5tfki9b1kb4f'
+});
+const SITIO_SEGURO = 'https://d27gjonf76v1aq.cloudfront.net/';
+const CLAVE_SESION = 'gaceta-sesion-editor';
+const CLAVE_PKCE = 'gaceta-pkce';
+
+function leerAlmacen(clave) {
+  try { return JSON.parse(sessionStorage.getItem(clave) || 'null'); } catch { return null; }
+}
+function guardarAlmacen(clave, valor) {
+  try { valor === null ? sessionStorage.removeItem(clave) : sessionStorage.setItem(clave, JSON.stringify(valor)); } catch { /* sin almacenamiento: no hay sesión */ }
+}
+// Sesión vigente con al menos 30 s de margen; si no, null.
+function leerSesionEditor() {
+  const sesion = leerAlmacen(CLAVE_SESION);
+  return sesion && typeof sesion.token === 'string' && sesion.expira > Date.now() + 30000 ? sesion : null;
+}
+const urlRetornoCognito = () => `${location.origin}/`;
+const puedeIniciarSesion = () => window.isSecureContext && !!globalThis.crypto?.subtle
+  && (location.hostname.endsWith('.cloudfront.net') || location.hostname === 'localhost');
+const base64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+async function iniciarSesionEditor() {
+  const verificador = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const estado = base64url(crypto.getRandomValues(new Uint8Array(16)));
+  const reto = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verificador)));
+  guardarAlmacen(CLAVE_PKCE, { verificador, estado });
+  const url = new URL(`${COGNITO.dominio}/oauth2/authorize`);
+  url.search = new URLSearchParams({
+    response_type: 'code', client_id: COGNITO.clienteId, redirect_uri: urlRetornoCognito(),
+    scope: 'openid email', state: estado, code_challenge_method: 'S256', code_challenge: reto
+  });
+  location.assign(url.href);
+}
+
+function cerrarSesionEditor() {
+  guardarAlmacen(CLAVE_SESION, null);
+  const url = new URL(`${COGNITO.dominio}/logout`);
+  url.search = new URLSearchParams({ client_id: COGNITO.clienteId, logout_uri: urlRetornoCognito() });
+  location.assign(url.href);
+}
+
+// Al volver de Cognito (?code=&state=) cambia el código por los tokens y limpia la dirección.
+async function completarInicioSesion() {
+  const parametros = new URLSearchParams(location.search);
+  const codigo = parametros.get('code');
+  const error = parametros.get('error');
+  if (!codigo && !error) return '';
+  history.replaceState(null, '', `${location.pathname}#crear-noticia`);
+  const pkce = leerAlmacen(CLAVE_PKCE);
+  guardarAlmacen(CLAVE_PKCE, null);
+  if (error) return 'Cognito no completó el inicio de sesión. Vuelve a intentarlo.';
+  if (!pkce || pkce.estado !== parametros.get('state')) return 'El inicio de sesión no coincide con esta pestaña. Vuelve a intentarlo.';
+  try {
+    const respuesta = await fetch(`${COGNITO.dominio}/oauth2/token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code', client_id: COGNITO.clienteId, code: codigo,
+        redirect_uri: urlRetornoCognito(), code_verifier: pkce.verificador
+      }),
+      signal: AbortSignal.timeout(15000)
+    });
+    const tokens = await respuesta.json();
+    if (!respuesta.ok || !tokens.access_token) throw new Error(tokens.error || `HTTP ${respuesta.status}`);
+    const reclamos = JSON.parse(atob(tokens.id_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    guardarAlmacen(CLAVE_SESION, { token: tokens.access_token, correo: reclamos.email || '', expira: Date.now() + Number(tokens.expires_in || 3600) * 1000 });
+    return '';
+  } catch (error) {
+    console.error('No se pudo completar el inicio de sesión', error);
+    return 'No se pudo completar el inicio de sesión. Vuelve a intentarlo.';
+  }
+}
+
+function actualizarSesionEditor(mensaje = '') {
+  const estado = document.getElementById('sesion-estado');
+  const campos = document.getElementById('campos-noticia');
+  if (!estado || !campos) return;
+  const iniciar = document.getElementById('iniciar-sesion');
+  const cerrar = document.getElementById('cerrar-sesion');
+  const sesion = leerSesionEditor();
+  if (!puedeIniciarSesion()) {
+    estado.innerHTML = '';
+    estado.append('Para publicar, entra al sitio seguro: ');
+    const enlace = Object.assign(document.createElement('a'), { href: `${SITIO_SEGURO}#crear-noticia`, textContent: SITIO_SEGURO });
+    estado.append(enlace);
+    iniciar.hidden = true; cerrar.hidden = true; campos.disabled = true;
+    return;
+  }
+  estado.textContent = mensaje || (sesion
+    ? `Sesión de editor iniciada${sesion.correo ? ` como ${sesion.correo}` : ''}. Vence a las ${new Date(sesion.expira).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }).replace(/\.$/, '')}.`
+    : 'Solo el editor puede publicar. Inicia sesión para continuar.');
+  iniciar.hidden = !!sesion; cerrar.hidden = !sesion; campos.disabled = !sesion;
+}
+
+async function prepararSesionEditor() {
+  if (!document.getElementById('sesion-editor')) return;
+  document.getElementById('iniciar-sesion').addEventListener('click', () => iniciarSesionEditor().catch(error => {
+    console.error(error); actualizarSesionEditor('No se pudo abrir el inicio de sesión.');
+  }));
+  document.getElementById('cerrar-sesion').addEventListener('click', cerrarSesionEditor);
+  actualizarSesionEditor();
+  const mensaje = puedeIniciarSesion() ? await completarInicioSesion() : '';
+  actualizarSesionEditor(mensaje);
+}
+
+// Encabezados de las rutas del editor. Sin sesión vigente lanza un error que el formulario muestra.
+function encabezadosEditor() {
+  const sesion = leerSesionEditor();
+  if (!sesion) { actualizarSesionEditor(); throw new Error('Tu sesión de editor no está activa. Inicia sesión para publicar.'); }
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion.token}` };
+}
+
+const SERVICIOS = Object.freeze({
+  obtener: 'la Lambda de obtener noticias',
+  agregar: 'la Lambda de agregar noticias',
+  prefirmar: 'la Lambda de URLs prefirmadas',
+  suscribir: 'la Lambda de suscripciones'
 });
 
-async function solicitarJSON(url, opciones = {}) {
+// destino: clave de API_NOTICIAS. Con API Gateway varias rutas comparten dominio y hasta URL, por eso no se deduce de la URL.
+async function solicitarJSON(url, opciones = {}, destino = 'obtener') {
   let respuesta;
   try {
     respuesta = await fetch(url, { ...opciones, signal: AbortSignal.timeout(30000) });
   } catch (error) {
-    const servicio = new URL(url).origin === new URL(API_NOTICIAS.prefirmar).origin ? 'la Lambda de URLs prefirmadas' : url === API_NOTICIAS.agregar ? 'la Lambda de agregar noticias' : url === API_NOTICIAS.suscribir ? 'la Lambda de suscripciones' : 'la Lambda de obtener noticias';
+    const servicio = SERVICIOS[destino] || 'el servicio de noticias';
     console.error(`Falló la conexión con ${servicio}`, { url, error });
-    throw new Error(`No se pudo completar la conexión con ${servicio}. Revisa la pestaña Red del navegador y la configuración CORS de esa Lambda.`);
+    throw new Error(`No se pudo completar la conexión con ${servicio} a través de API Gateway. Revisa la pestaña Red del navegador${API_BASE === API_DIRECTA ? ' y el CORS de la API' : ''}.`);
+  }
+  if (respuesta.status === 401) {
+    guardarAlmacen(CLAVE_SESION, null);
+    actualizarSesionEditor();
+    throw new Error('Tu sesión de editor venció o no es válida. Inicia sesión de nuevo.');
   }
   const texto = await respuesta.text();
   let datos;
@@ -861,9 +995,9 @@ async function cargarNoticias() {
 // Flujo asíncrono: la Lambda de prefirmadas guarda pendientes/ID.json y la procesadora S3 escribe en DynamoDB.
 async function subirImagenConNoticia(archivo, noticia) {
   const datos = await solicitarJSON(API_NOTICIAS.prefirmar, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: encabezadosEditor(),
     body: JSON.stringify({ ...noticia, tipo: archivo.type })
-  });
+  }, 'prefirmar');
   const uploadUrl = urlSegura(datos.uploadUrl);
   if (!uploadUrl || datos.noticiaId !== noticia.id) throw new Error('La Lambda de prefirmadas debe devolver uploadUrl y el mismo noticiaId.');
   let respuesta;
@@ -881,7 +1015,8 @@ async function subirImagenConNoticia(archivo, noticia) {
 
 // Consulta por id durante un tiempo limitado; una subida exitosa no implica que la noticia ya esté guardada.
 async function esperarProcesamiento(id, intentos = 10, esperaMs = 2000) {
-  const url = new URL(API_NOTICIAS.obtener);
+  // location.href como base admite API_BASE relativa ('/api') cuando la API se sirve por CloudFront.
+  const url = new URL(API_NOTICIAS.obtener, location.href);
   url.searchParams.set('id', id);
   for (let i = 0; i < intentos; i++) {
     await new Promise(r => setTimeout(r, esperaMs));
@@ -960,9 +1095,9 @@ function prepararPublicacion() {
       } else {
         estado.textContent = 'Guardando noticia…';
         await solicitarJSON(API_NOTICIAS.agregar, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: encabezadosEditor(),
           body: JSON.stringify({ ...noticia, imagen: '' })
-        });
+        }, 'agregar');
       }
       guardada = true;
       formulario.reset();
@@ -976,6 +1111,7 @@ function prepararPublicacion() {
     } finally {
       enviando = false;
       document.getElementById('campos-noticia').disabled = false;
+      actualizarSesionEditor();
     }
   });
 }
@@ -1000,7 +1136,7 @@ function prepararSuscripcion() {
     try {
       const datos = await solicitarJSON(API_NOTICIAS.suscribir, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ correo })
-      });
+      }, 'suscribir');
       estado.textContent = datos.mensaje || 'Revisa tu correo para confirmar la suscripción.';
       formulario.reset();
     } catch (error) {

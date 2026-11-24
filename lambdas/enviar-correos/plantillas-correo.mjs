@@ -241,11 +241,17 @@ export function correoAlarma({ alarma, sitio, logo, bajaUrl = '' }) {
   const nombreFuncion = funcion ? (funcion.value ?? funcion.Value) : '';
   const condicion = alarma.Trigger ? `${alarma.Trigger.Statistic || ''} de ${alarma.Trigger.MetricName} ${{ GreaterThanOrEqualToThreshold: '≥', GreaterThanThreshold: '>', LessThanThreshold: '<', LessThanOrEqualToThreshold: '≤' }[alarma.Trigger.ComparisonOperator] || alarma.Trigger.ComparisonOperator} ${alarma.Trigger.Threshold} en ${alarma.Trigger.Period / 60 || alarma.Trigger.Period} min` : '';
   const estados = { ALARM: 'En alarma', OK: 'Correcto', INSUFFICIENT_DATA: 'Datos insuficientes' };
+  // Alarmas de API Gateway (gaceta-api-errores-5xx): mismo correo, con textos y registros de la API.
+  const esApi = alarma.Trigger?.Namespace === 'AWS/ApiGateway';
+  const grupoLogs = esApi ? '/aws/apigateway/gaceta-api' : nombreFuncion ? `/aws/lambda/${nombreFuncion}` : '';
   const acciones = [['Ver la alarma', consola(region, `cloudwatch/home?region=${region}#alarmsV2:alarm/${encodeURIComponent(nombre)}`)]];
-  if (nombreFuncion) acciones.push(['Ver los logs', consola(region, `cloudwatch/home?region=${region}#logsV2:log-groups/log-group/${encodeURIComponent(encodeURIComponent(`/aws/lambda/${nombreFuncion}`))}`)]);
-  const titulo = enAlarma ? 'La procesadora de noticias está fallando' : alarma.NewStateValue === 'OK' ? 'La procesadora se recuperó' : 'La alarma no tiene datos suficientes';
+  if (grupoLogs) acciones.push(['Ver los logs', consola(region, `cloudwatch/home?region=${region}#logsV2:log-groups/log-group/${encodeURIComponent(encodeURIComponent(grupoLogs))}`)]);
+  const sujeto = esApi ? 'La API de la gaceta' : 'La procesadora de noticias';
+  const titulo = enAlarma ? `${sujeto} está fallando` : alarma.NewStateValue === 'OK' ? `${esApi ? 'La API de la gaceta' : 'La procesadora'} se recuperó` : 'La alarma no tiene datos suficientes';
   const resumen = enAlarma
-    ? 'CloudWatch detectó errores en la función que guarda las noticias con imagen. Las publicaciones afectadas se reintentan automáticamente; revisa los logs si el problema continúa.'
+    ? esApi
+      ? 'CloudWatch detectó respuestas 5xx en API Gateway: el sitio no pudo cargar, publicar o suscribir. Revisa los registros de acceso de la API y los logs de la Lambda de la ruta afectada.'
+      : 'CloudWatch detectó errores en la función que guarda las noticias con imagen. Las publicaciones afectadas se reintentan automáticamente; revisa los logs si el problema continúa.'
     : alarma.NewStateValue === 'OK'
       ? 'La métrica de errores volvió a estar dentro del límite. No se requiere ninguna acción.'
       : 'La alarma no recibió datos suficientes para evaluar su estado.';
